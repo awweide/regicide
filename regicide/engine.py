@@ -122,8 +122,9 @@ class Game:
         self._validate_play(play)
         for index in indexes:
             self.hand[index] = None
-        self._apply_play(play)
-        if self.phase == Phase.PLAY and self.active_enemy is not None:
+        defeated_enemy = self._apply_play(play)
+        self._compact_hand()
+        if not defeated_enemy and self.phase == Phase.PLAY and self.active_enemy is not None:
             if sum(card.value for card in self.hand if card is not None) < self.incoming_attack:
                 self.phase = Phase.LOST
                 self.message = "Enemy attack cannot be absorbed. You lose."
@@ -158,20 +159,27 @@ class Game:
             return 0
         return ENEMY_HEALTH[self.active_enemy.rank]
 
-    def _apply_play(self, cards: list[Card]) -> None:
-        damage = sum(card.value for card in cards)
-        if any(card.suit == Suit.CLUBS for card in cards):
+    def _apply_play(self, cards: list[Card]) -> bool:
+        total_value = sum(card.value for card in cards)
+        active_suits = {card.suit for card in cards}
+        if self.active_enemy is not None:
+            active_suits.discard(self.active_enemy.suit)
+
+        damage = total_value
+        if Suit.CLUBS in active_suits:
             damage *= 2
         self.enemy_damage += damage
         self.in_play.append(PlayedSet(cards, damage))
-        if any(card.suit == Suit.SPADES for card in cards):
-            self.attack_reduction += sum(card.value for card in cards if card.suit == Suit.SPADES)
-        if any(card.suit == Suit.HEARTS for card in cards):
-            self._heal(sum(card.value for card in cards if card.suit == Suit.HEARTS))
-        if any(card.suit == Suit.DIAMONDS for card in cards):
-            self._draw_cards(sum(card.value for card in cards if card.suit == Suit.DIAMONDS))
+        if Suit.SPADES in active_suits:
+            self.attack_reduction += total_value
+        if Suit.HEARTS in active_suits:
+            self._heal(total_value)
+        if Suit.DIAMONDS in active_suits:
+            self._draw_cards(total_value)
         if self.enemy_damage >= self.active_enemy_health:
             self._defeat_enemy(exact=self.enemy_damage == self.active_enemy_health)
+            return True
+        return False
 
     def _defeat_enemy(self, exact: bool) -> None:
         defeated = self.active_enemy
@@ -186,7 +194,6 @@ class Game:
         self.enemy_damage = 0
         self.attack_reduction = 0
         self.active_enemy = None
-        self._draw_to_hand_limit()
         if not self._reveal_next_enemy():
             self.phase = Phase.WON
             self.message = "All enemies defeated. You win!"
@@ -231,6 +238,10 @@ class Game:
     def _first_empty_slot(self) -> int | None:
         return next((index for index, card in enumerate(self.hand) if card is None), None)
 
+    def _compact_hand(self) -> None:
+        cards = [card for card in self.hand if card is not None]
+        self.hand = cards + [None] * (len(self.hand) - len(cards))
+
     def _reveal_next_enemy(self) -> bool:
         if not self.enemy_pile:
             return False
@@ -254,6 +265,13 @@ class Game:
             raise ValueError("Cannot choose the same slot more than once.")
         return indexes
 
+    def _render_hand_rows(self) -> list[str]:
+        card_cells = [str(card) if card is not None else "--" for card in self.hand]
+        widths = [max(len(str(slot)), len(card)) for slot, card in enumerate(card_cells, start=1)]
+        slot_row = "   ".join(f"{slot:>{width}}" for slot, width in zip(range(1, len(self.hand) + 1), widths))
+        card_row = "   ".join(f"{card:>{width}}" for card, width in zip(card_cells, widths))
+        return [slot_row, card_row]
+
     def render(self) -> str:
         enemy = str(self.active_enemy) if self.active_enemy else "--"
         in_play = ", ".join(str(played) for played in self.in_play) or "--"
@@ -265,8 +283,7 @@ class Game:
             f"Enemy damage: {self.enemy_damage}/{self.active_enemy_health}  Incoming attack: {self.incoming_attack}",
             f"In play: {in_play}",
             "Hand:",
-            "   ".join(str(i) for i in range(1, len(self.hand) + 1)),
-            "   ".join(str(card) if card is not None else "--" for card in self.hand),
+            *self._render_hand_rows(),
             f"Phase: {self.phase.value}",
         ]
         if self.message:
