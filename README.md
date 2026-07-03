@@ -28,17 +28,20 @@ This engine intentionally keeps the implementation compact, but it includes the 
 - exact enemy defeats returning the defeated enemy to the tavern deck;
 - play and discard phases with text validation errors.
 
-The CLI is deliberately plain text. A typical screen looks like:
+The CLI is deliberately plain text. For example, the first screen from `python -m regicide.cli --seed 1` looks like:
 
 ```text
-Draw pile (12)
-Discard pile (17)
-Enemy pile (9)
-Active enemy: J♣
-Enemy damage: 5/20  Incoming attack: 10
-In play: (4♣ + A♣), (3♣)
+Enter slot numbers separated by spaces. Type 'quit' to exit.
+
+Draw pile (32)
+Discard pile (0)
+Enemy pile (11)
+Active enemy: J♥
+Enemy damage: 0/20  Incoming attack: 10
+In play: --
 Hand:
-1   2   3   4   5   6   7   8
-2♥   --   5♦   A♠   9♣   --   3♥   4♦
+ 1    2    3    4    5    6    7    8
+9♣   7♠   5♣   7♦   8♣   2♠   9♥   A♠
 Phase: Play
+Play slots>
 ```
