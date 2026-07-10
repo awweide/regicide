@@ -79,11 +79,13 @@ The final score is:
 - 1000 * illegal moves attempted
 ```
 
-To run repeated games and let the model revise its local context between games, use `--games` with `--revise-between`. After each game, the runner asks Ollama to rewrite `agent_context/strategy.txt` from the current text files and the previous game result.
+To run repeated games and let the model revise its local context between games, use `--games` with `--revise-between`. After each game, the runner asks Ollama to rewrite `agent_context/strategy.txt` from the current text files and the previous game result. Each game gets its own output folder under `--log-dir`, containing `game.jsonl` plus a `context/` snapshot of the `.txt` files used for that game.
 
 ```bash
 python -m regicide.agent --model llama3 --games 25 --revise-between
 ```
+
+Seed behavior is explicit for multi-game runs. Use `--seed-mode fixed --seed 1` to replay the same starting game repeatedly while the strategy evolves, `--seed-mode random` to draw a fresh seed for every game, or the default `--seed-mode increment --seed 1` to use `seed + game_number`.
 
 Useful knobs:
 
@@ -93,6 +95,8 @@ python -m regicide.agent \
   --ollama-url http://localhost:11434 \
   --context-dir agent_context \
   --log-dir agent_logs \
+  --seed 1 \
+  --seed-mode fixed \
   --timeout 10 \
   --retries 1 \
   --max-illegal 10

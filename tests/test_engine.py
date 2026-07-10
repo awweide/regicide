@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from regicide.engine import Card, Game, Phase, Rank, Suit
@@ -114,3 +116,43 @@ def test_agent_score_counts_defeated_enemies_hand_draw_and_illegal_moves():
     game.hand = [Card(Rank.TEN, Suit.HEARTS), Card(Rank.ACE, Suit.SPADES)] + [None] * 6
     game.draw_pile = [Card(Rank.TWO, Suit.CLUBS)] * 3
     assert score(game, illegal_moves=2) == 10000 + 1100 + 3 - 2000
+
+
+def test_agent_seed_modes_for_multiple_games():
+    from argparse import Namespace
+
+    from regicide.agent import game_seed
+
+    assert game_seed(Namespace(seed=7, seed_mode="fixed"), 1) == 7
+    assert game_seed(Namespace(seed=7, seed_mode="fixed"), 2) == 7
+    assert game_seed(Namespace(seed=7, seed_mode="increment"), 1) == 8
+    assert game_seed(Namespace(seed=7, seed_mode="increment"), 2) == 9
+    assert game_seed(Namespace(seed=None, seed_mode="increment"), 1) is None
+
+
+def test_agent_run_one_writes_per_game_log_and_context_snapshot(tmp_path):
+    from argparse import Namespace
+
+    from regicide.agent import Ollama, run_one
+
+    context_dir = tmp_path / "context"
+    context_dir.mkdir()
+    (context_dir / "strategy.txt").write_text("play clubs first")
+    args = Namespace(
+        seed=1,
+        seed_mode="fixed",
+        log_dir=tmp_path / "logs",
+        context_dir=context_dir,
+        max_illegal=0,
+    )
+    result = run_one(args, Ollama("unused"), 1)
+
+    output_dir = Path(result["output_dir"])
+    if not output_dir.is_absolute():
+        output_dir = tmp_path / output_dir
+    assert result["seed"] == 1
+    assert result["seed_mode"] == "fixed"
+    assert Path(result["log"]).name == "game.jsonl"
+    assert Path(result["log"]).parent == output_dir
+    assert (output_dir / "game.jsonl").exists()
+    assert (output_dir / "context" / "strategy.txt").read_text() == "play clubs first"
