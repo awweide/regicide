@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
+import shutil
 import time
 import urllib.error
 import urllib.request
@@ -38,12 +40,32 @@ class Ollama:
         raise RuntimeError(f"ollama gave up after {self.retries + 1} attempt(s): {last}")
 
 
-def read_texts(folder: Path) -> str:
+def text_paths(folder: Path) -> list[Path]:
     folder.mkdir(parents=True, exist_ok=True)
+    return sorted(folder.glob("*.txt"))
+
+
+def read_texts(folder: Path) -> str:
     parts = []
-    for path in sorted(folder.glob("*.txt")):
+    for path in text_paths(folder):
         parts.append(f"--- {path.name} ---\n{path.read_text(errors='replace')}")
     return "\n\n".join(parts) or "(no local context files yet)"
+
+
+def snapshot_texts(context_dir: Path, output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for path in text_paths(context_dir):
+        shutil.copy2(path, output_dir / path.name)
+
+
+def game_seed(args: argparse.Namespace, game_no: int) -> int | None:
+    if args.seed_mode == "random":
+        return random.SystemRandom().randrange(0, 2**32)
+    if args.seed is None:
+        return None
+    if args.seed_mode == "fixed":
+        return args.seed
+    return args.seed + game_no
 
 
 def score(game: Game, illegal_moves: int) -> int:
@@ -80,10 +102,13 @@ Last game result JSON:
 
 
 def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
-    game = Game.new(seed=args.seed + game_no if args.seed is not None else None)
+    seed = game_seed(args, game_no)
+    game = Game.new(seed=seed)
     illegal = 0
     last_error = ""
-    log_path = args.log_dir / f"game-{int(time.time())}-{game_no}.jsonl"
+    game_dir = args.log_dir / f"game-{game_no:03d}-{int(time.time())}"
+    log_path = game_dir / "game.jsonl"
+    snapshot_texts(args.context_dir, game_dir / "context")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("w") as log:
         turn = 0
@@ -116,7 +141,16 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
     if illegal >= args.max_illegal and game.phase not in {Phase.WON, Phase.LOST}:
         game.phase = Phase.LOST
         game.message = f"Stopped after {illegal} illegal move(s)."
-    result = {"game": game_no, "phase": game.phase.value, "score": score(game, illegal), "illegal_moves": illegal, "log": str(log_path)}
+    result = {
+        "game": game_no,
+        "seed": seed,
+        "seed_mode": args.seed_mode,
+        "phase": game.phase.value,
+        "score": score(game, illegal),
+        "illegal_moves": illegal,
+        "log": str(log_path),
+        "output_dir": str(game_dir),
+    }
     print(json.dumps(result))
     return result
 
@@ -127,7 +161,24 @@ def main() -> None:
     parser.add_argument("--ollama-url", default="http://localhost:11434")
     parser.add_argument("--context-dir", type=Path, default=Path("agent_context"))
     parser.add_argument("--log-dir", type=Path, default=Path("agent_logs"))
-    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=(
+            "Base random seed. With --seed-mode fixed, every game uses this exact seed. "
+            "With increment, game N uses seed + N. Omit for Python RNG randomness."
+        ),
+    )
+    parser.add_argument(
+        "--seed-mode",
+        choices=("fixed", "increment", "random"),
+        default="increment",
+        help=(
+            "How to seed multiple games: fixed reuses --seed, increment uses --seed + game number, "
+            "random draws a fresh seed for each game."
+        ),
+    )
     parser.add_argument("--games", type=int, default=1)
     parser.add_argument("--max-illegal", type=int, default=10)
     parser.add_argument("--timeout", type=float, default=20)
