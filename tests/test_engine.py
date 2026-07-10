@@ -103,3 +103,14 @@ def test_discard_requires_enough_value():
     game.hand = [Card(Rank.TWO, Suit.HEARTS)] + [None] * 7
     with pytest.raises(ValueError, match="at least 10"):
         game.discard_slots([1])
+
+
+def test_agent_score_counts_defeated_enemies_hand_draw_and_illegal_moves():
+    from regicide.agent import score
+
+    game = Game.new(seed=1)
+    game.enemy_pile = game.enemy_pile[:10]
+    game.active_enemy = Card(Rank.JACK, Suit.CLUBS)
+    game.hand = [Card(Rank.TEN, Suit.HEARTS), Card(Rank.ACE, Suit.SPADES)] + [None] * 6
+    game.draw_pile = [Card(Rank.TWO, Suit.CLUBS)] * 3
+    assert score(game, illegal_moves=2) == 10000 + 1100 + 3 - 2000

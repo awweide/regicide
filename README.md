@@ -45,3 +45,57 @@ Hand:
 Phase: Play
 Play slots>
 ```
+
+## Ollama learning agent runner
+
+This repo also includes a deliberately small agent loop for a local Ollama server. It starts a full game, asks Ollama for slot numbers, applies the move to the engine, sends the next rendered state back to Ollama, and writes a JSONL session log containing every state, response, parsed move, and illegal-move error.
+
+```bash
+python -m regicide.agent --model llama3 --seed 1
+```
+
+The installed console script is equivalent:
+
+```bash
+regicide-agent --model llama3 --seed 1
+```
+
+By default the runner:
+
+- reads all `*.txt` files from `agent_context/` and includes them in every move prompt;
+- writes logs to `agent_logs/`;
+- talks to `http://localhost:11434/api/generate` with `stream: false`;
+- uses a 20 second timeout, two retries, then gives up for that prompt;
+- counts illegal engine moves and Ollama communication failures as illegal moves;
+- stops early after 10 illegal moves;
+- prints one JSON result per game with the terminal phase, illegal-move count, score, and log path.
+
+The final score is:
+
+```text
+10000 * enemies defeated
++ 100 * sum(value of cards in hand)
++ cards in the draw pile
+- 1000 * illegal moves attempted
+```
+
+To run repeated games and let the model revise its local context between games, use `--games` with `--revise-between`. After each game, the runner asks Ollama to rewrite `agent_context/strategy.txt` from the current text files and the previous game result.
+
+```bash
+python -m regicide.agent --model llama3 --games 25 --revise-between
+```
+
+Useful knobs:
+
+```bash
+python -m regicide.agent \
+  --model llama3 \
+  --ollama-url http://localhost:11434 \
+  --context-dir agent_context \
+  --log-dir agent_logs \
+  --timeout 10 \
+  --retries 1 \
+  --max-illegal 10
+```
+
+The prompting and context format are intentionally plain. Edit the local text files and/or `regicide/agent.py` if you want a richer policy, move format, or self-improvement protocol.
