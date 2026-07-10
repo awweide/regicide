@@ -63,6 +63,7 @@ regicide-agent --model llama3 --seed 1
 By default the runner:
 
 - reads all `*.txt` files from `agent_context/` and includes them in every move prompt;
+- asks the model for a three-line response: move slots, an optional brief comment for the game log, and short-term memory to carry into the next turn of the same game;
 - writes logs to `agent_logs/`;
 - talks to `http://localhost:11434/api/generate` with `stream: false`;
 - uses a 20 second timeout, two retries, then gives up for that prompt;
@@ -101,5 +102,15 @@ python -m regicide.agent \
   --retries 1 \
   --max-illegal 10
 ```
+
+Move responses use this format:
+
+```text
+1: 1 3
+2: Brief optional explanation for the game log.
+3: Short-term memory for the next turn, such as a known top draw-pile card.
+```
+
+The comment is only written to the JSONL game log for later revision. The memory is not written back to `agent_context/`; it is passed only to the next move prompt within the same game.
 
 The prompting and context format are intentionally plain. Edit the local text files and/or `regicide/agent.py` if you want a richer policy, move format, or self-improvement protocol.

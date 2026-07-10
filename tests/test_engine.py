@@ -156,3 +156,56 @@ def test_agent_run_one_writes_per_game_log_and_context_snapshot(tmp_path):
     assert Path(result["log"]).parent == output_dir
     assert (output_dir / "game.jsonl").exists()
     assert (output_dir / "context" / "strategy.txt").read_text() == "play clubs first"
+
+
+def test_agent_parses_structured_move_comment_and_memory():
+    from regicide.agent import parse_agent_response
+
+    slots, comment, memory = parse_agent_response(
+        "1: 1 3\n"
+        "2: Play a diamond pair to refill hand.\n"
+        "3: J♣ is on top of the draw pile.\n"
+    )
+
+    assert slots == [1, 3]
+    assert comment == "Play a diamond pair to refill hand."
+    assert memory == "J♣ is on top of the draw pile."
+
+
+def test_agent_response_limits_comment_and_memory_to_200_words():
+    from regicide.agent import parse_agent_response
+
+    long_text = " ".join(f"word{i}" for i in range(205))
+    _, comment, memory = parse_agent_response(f"1: 1\n2: {long_text}\n3: {long_text}")
+
+    assert len(comment.split()) == 200
+    assert len(memory.split()) == 200
+
+
+def test_agent_run_one_logs_comment_and_short_term_memory(tmp_path):
+    from argparse import Namespace
+    import json
+
+    from regicide.agent import run_one
+
+    class FakeOllama:
+        def prompt(self, prompt: str) -> str:
+            assert "Short-term memory from previous turn:" in prompt
+            return "1: 1 1\n2: intentionally duplicate move for parser coverage\n3: remember top card is J♣"
+
+    context_dir = tmp_path / "context"
+    context_dir.mkdir()
+    args = Namespace(
+        seed=1,
+        seed_mode="fixed",
+        log_dir=tmp_path / "logs",
+        context_dir=context_dir,
+        max_illegal=1,
+    )
+
+    result = run_one(args, FakeOllama(), 1)
+    entry = json.loads(Path(result["log"]).read_text().splitlines()[0])
+
+    assert entry["comment"] == "intentionally duplicate move for parser coverage"
+    assert entry["memory_before"] == ""
+    assert entry["memory_after"] == "remember top card is J♣"

@@ -14,6 +14,39 @@ from .cli import parse_slots
 from .engine import CARD_VALUES, Game, Phase
 
 
+def limit_words(text: str, max_words: int = 200) -> str:
+    words = text.split()
+    if len(words) <= max_words:
+        return text.strip()
+    return " ".join(words[:max_words])
+
+
+def parse_agent_response(response: str) -> tuple[list[int], str, str]:
+    sections: dict[str, list[str]] = {"move": [], "comment": [], "memory": []}
+    current: str | None = None
+    for raw_line in response.splitlines():
+        line = raw_line.strip()
+        lowered = line.lower()
+        if lowered.startswith(("1:", "move:")):
+            current = "move"
+            sections[current].append(line.split(":", 1)[1].strip())
+        elif lowered.startswith(("2:", "comment:")):
+            current = "comment"
+            sections[current].append(line.split(":", 1)[1].strip())
+        elif lowered.startswith(("3:", "memory:")):
+            current = "memory"
+            sections[current].append(line.split(":", 1)[1].strip())
+        elif current is not None:
+            sections[current].append(line)
+
+    move_text = "\n".join(part for part in sections["move"] if part).strip()
+    if not move_text:
+        move_text = response.strip()
+    comment = limit_words("\n".join(part for part in sections["comment"] if part))
+    memory = limit_words("\n".join(part for part in sections["memory"] if part))
+    return parse_slots(move_text), comment, memory
+
+
 @dataclass
 class Ollama:
     model: str
@@ -74,12 +107,21 @@ def score(game: Game, illegal_moves: int) -> int:
     return 10000 * enemies_defeated + 100 * hand_value + len(game.draw_pile) - 1000 * illegal_moves
 
 
-def move_prompt(game: Game, context: str, illegal_moves: int, last_error: str = "") -> str:
-    return f"""You are playing solo Regicide. Reply with only hand slot numbers, e.g. 1 3.
-Use a legal move for the current phase.
+def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
+    return f"""You are playing solo Regicide. Use a legal move for the current phase.
+Reply in this exact three-line format:
+1: <hand slot numbers, e.g. 1 3>
+2: <optional brief comment, up to 200 words, explaining the choice>
+3: <short-term memory for the next turn in this game, up to 200 words>
+
+The comment is logged for later strategy revision but is not shown to future move prompts.
+The memory is passed to your next move prompt in this same game; use it for facts like known top draw-pile cards or remaining enemies.
 
 Local context:
 {context}
+
+Short-term memory from previous turn:
+{memory or '(none)'}
 
 Illegal moves so far: {illegal_moves}
 Last error: {last_error or 'none'}
@@ -106,6 +148,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
     game = Game.new(seed=seed)
     illegal = 0
     last_error = ""
+    memory = ""
     game_dir = args.log_dir / f"game-{game_no:03d}-{int(time.time())}"
     log_path = game_dir / "game.jsonl"
     snapshot_texts(args.context_dir, game_dir / "context")
@@ -115,9 +158,11 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
         while game.phase not in {Phase.WON, Phase.LOST} and illegal < args.max_illegal:
             context = read_texts(args.context_dir)
             before = game.render()
+            memory_before = memory
+            comment = ""
             try:
-                response = ollama.prompt(move_prompt(game, context, illegal, last_error))
-                slots = parse_slots(response)
+                response = ollama.prompt(move_prompt(game, context, memory, illegal, last_error))
+                slots, comment, memory = parse_agent_response(response)
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
                 else:
@@ -134,6 +179,9 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
                 "phase_before": before,
                 "response": response,
                 "slots": slots,
+                "comment": comment,
+                "memory_before": memory_before,
+                "memory_after": memory,
                 "illegal_moves": illegal,
                 "error": last_error,
                 "phase_after": game.render(),
