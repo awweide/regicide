@@ -184,7 +184,7 @@ Last game result JSON:
 """
 
 
-def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
+def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=print) -> dict:
     seed = game_seed(args, game_no)
     game = Game.new(seed=seed)
     illegal = 0
@@ -192,28 +192,35 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
     memory = ""
     game_dir = args.log_dir / f"game-{game_no:03d}-{int(time.time())}"
     log_path = game_dir / "game.jsonl"
+    progress(f"[game {game_no}] Starting game with seed={seed!r} (seed mode: {args.seed_mode})")
+    progress(f"[game {game_no}] Writing detailed turn log to {log_path}")
     snapshot_texts(args.context_dir, game_dir / "context")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("w") as log:
         turn = 0
         while game.phase not in {Phase.WON, Phase.LOST} and illegal < args.max_illegal:
+            progress(f"[game {game_no} turn {turn + 1}] Phase={game.phase.value}; illegal moves={illegal}/{args.max_illegal}")
             context = read_texts(args.context_dir)
             before = game.render()
             memory_before = memory
             comment = ""
             try:
+                progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
                 response = ollama.prompt(move_prompt(game, context, memory, illegal, last_error))
                 slots, comment, memory = parse_agent_response(response)
+                progress(f"[game {game_no} turn {turn + 1}] Model selected slot(s): {slots}")
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
                 else:
                     game.discard_slots(slots)
                 last_error = ""
+                progress(f"[game {game_no} turn {turn + 1}] Move applied; new phase={game.phase.value}")
             except Exception as exc:  # keep games moving; illegal engine moves and ollama failures both count
                 response = locals().get("response", "")
                 slots = []
                 illegal += 1
                 last_error = str(exc)
+                progress(f"[game {game_no} turn {turn + 1}] Illegal move or agent error ({illegal}/{args.max_illegal}): {last_error}")
             turn += 1
             log.write(json.dumps({
                 "turn": turn,
@@ -230,6 +237,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int) -> dict:
     if illegal >= args.max_illegal and game.phase not in {Phase.WON, Phase.LOST}:
         game.phase = Phase.LOST
         game.message = f"Stopped after {illegal} illegal move(s)."
+    progress(f"[game {game_no}] Finished with phase={game.phase.value}, score={score(game, illegal)}, illegal moves={illegal}")
     result = {
         "game": game_no,
         "seed": seed,
@@ -286,9 +294,11 @@ def main() -> None:
     for game_no in range(1, args.games + 1):
         result = run_one(args, ollama, game_no)
         if args.revise_between:
+            print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
             text = ollama.prompt(revise_prompt(read_texts(args.context_dir), result))
             args.context_dir.mkdir(parents=True, exist_ok=True)
             (args.context_dir / "strategy.txt").write_text(text)
+            print(f"[game {game_no}] Wrote revised strategy notes to {args.context_dir / 'strategy.txt'}")
 
 
 if __name__ == "__main__":

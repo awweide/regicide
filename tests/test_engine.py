@@ -209,3 +209,33 @@ def test_agent_run_one_logs_comment_and_short_term_memory(tmp_path):
     assert entry["comment"] == "intentionally duplicate move for parser coverage"
     assert entry["memory_before"] == ""
     assert entry["memory_after"] == "remember top card is J♣"
+
+
+def test_agent_run_one_reports_progress_updates(tmp_path):
+    from argparse import Namespace
+
+    from regicide.agent import run_one
+
+    class FakeOllama:
+        model = "fake-model"
+
+        def prompt(self, prompt: str) -> str:
+            return "1: 1 1\n2: duplicate move\n3: remembered state"
+
+    context_dir = tmp_path / "context"
+    context_dir.mkdir()
+    progress_messages: list[str] = []
+    args = Namespace(
+        seed=1,
+        seed_mode="fixed",
+        log_dir=tmp_path / "logs",
+        context_dir=context_dir,
+        max_illegal=1,
+    )
+
+    run_one(args, FakeOllama(), 1, progress=progress_messages.append)
+
+    assert progress_messages[0].startswith("[game 1] Starting game")
+    assert any("Requesting move from Ollama model 'fake-model'" in message for message in progress_messages)
+    assert any("Illegal move or agent error (1/1)" in message for message in progress_messages)
+    assert progress_messages[-1].startswith("[game 1] Finished")
