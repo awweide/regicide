@@ -6,6 +6,7 @@ import random
 import shutil
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,12 +48,52 @@ def parse_agent_response(response: str) -> tuple[list[int], str, str]:
     return parse_slots(move_text), comment, memory
 
 
+def _read_ollama_json(url: str, timeout: float) -> object:
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode())
+
+
 @dataclass
 class Ollama:
     model: str
     url: str = "http://localhost:11434"
     timeout: float = 20
     retries: int = 2
+
+    def check_connection(self, progress=print) -> dict:
+        """Verify basic Ollama HTTP and generation communication with progress output."""
+        base_url = self.url.rstrip("/")
+        result: dict[str, object] = {"url": base_url, "model": self.model}
+
+        progress(f"[1/4] Checking Ollama server URL: {base_url}")
+        parsed = urllib.parse.urlparse(base_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise RuntimeError(f"invalid Ollama URL: {base_url!r}")
+
+        progress(f"[2/4] Requesting model list from {base_url}/api/tags")
+        tags = _read_ollama_json(f"{base_url}/api/tags", self.timeout)
+        models = []
+        if isinstance(tags, dict):
+            for item in tags.get("models", []):
+                if isinstance(item, dict) and isinstance(item.get("name"), str):
+                    models.append(item["name"])
+        result["available_models"] = models
+        if models:
+            progress(f"      Found {len(models)} model(s): {', '.join(models)}")
+        else:
+            progress("      Server responded, but no installed models were reported.")
+
+        progress(f"[3/4] Sending a minimal non-streaming /api/generate prompt to model {self.model!r}")
+        started = time.monotonic()
+        response = self.prompt("Reply with exactly: pong")
+        elapsed = time.monotonic() - started
+        result["response"] = response
+        result["elapsed_seconds"] = round(elapsed, 3)
+        progress(f"      Received response in {elapsed:.2f}s: {response!r}")
+
+        progress("[4/4] Ollama communication check completed successfully.")
+        return result
 
     def prompt(self, prompt: str) -> str:
         body = json.dumps({"model": self.model, "prompt": prompt, "stream": False}).encode()
@@ -232,8 +273,16 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=20)
     parser.add_argument("--retries", type=int, default=2)
     parser.add_argument("--revise-between", action="store_true", help="After each game, ask Ollama to rewrite context-dir/strategy.txt.")
+    parser.add_argument(
+        "--check-ollama",
+        action="store_true",
+        help="Only test Ollama server communication, printing each progress step, then exit.",
+    )
     args = parser.parse_args()
     ollama = Ollama(args.model, args.ollama_url, args.timeout, args.retries)
+    if args.check_ollama:
+        print(json.dumps(ollama.check_connection(), indent=2))
+        return
     for game_no in range(1, args.games + 1):
         result = run_one(args, ollama, game_no)
         if args.revise_between:
