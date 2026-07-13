@@ -54,6 +54,18 @@ This repo also includes a deliberately small agent loop for a local Ollama serve
 python -m regicide.agent --model llama3 --seed 1
 ```
 
+If you only want to verify Ollama communication before running a game, use `--check-ollama`. It prints each step as it validates the server URL, requests `/api/tags`, sends a minimal non-streaming `/api/generate` prompt, and then exits without playing.
+
+```bash
+python -m regicide.agent --model llama3 --ollama-url http://localhost:11434 --check-ollama
+```
+
+There is also an opt-in pytest integration check that performs the same real-server communication test and prints the same progress when run with `-s`:
+
+```bash
+OLLAMA_INTEGRATION=1 OLLAMA_MODEL=llama3 OLLAMA_URL=http://localhost:11434 PYTHONPATH=. pytest -s tests/test_ollama_connection.py::test_real_ollama_server_communication
+```
+
 The installed console script is equivalent:
 
 ```bash
