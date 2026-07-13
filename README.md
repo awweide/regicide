@@ -122,7 +122,7 @@ python -m regicide.agent \
 
 ### Troubleshooting Ollama timeouts
 
-The runner does not retry invalid Regicide moves inside a single turn. If a response is received but cannot be parsed or is illegal, that turn is logged immediately as an illegal move and the next prompt includes the engine error. Transport failures, timeouts, and malformed Ollama JSON are the only failures controlled by `--retries`.
+The runner does not retry invalid Regicide moves inside a single turn. If a response is received but cannot be parsed or is illegal, that turn is logged immediately as an illegal move; the progress output, JSONL log, and next prompt include both the failure reason and the model response that caused it. Transport failures, timeouts, and malformed Ollama JSON are the only failures controlled by `--retries`.
 
 For large local models, the most common timeout cause is that non-streaming `/api/generate` must finish the whole response before the HTTP request returns. Use the per-attempt timing output to decide whether to raise `--timeout`, reduce `--num-predict`, or switch to a faster quantization/model. A useful diagnostic command is:
 

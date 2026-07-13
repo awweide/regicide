@@ -211,6 +211,46 @@ def test_agent_run_one_logs_comment_and_short_term_memory(tmp_path):
     assert entry["memory_after"] == "remember top card is J♣"
 
 
+def test_agent_feeds_failed_model_response_into_next_prompt_and_log(tmp_path):
+    from argparse import Namespace
+    import json
+
+    from regicide.agent import run_one
+
+    class FakeOllama:
+        model = "fake-model"
+
+        def __init__(self):
+            self.prompts: list[str] = []
+
+        def prompt(self, prompt: str) -> str:
+            self.prompts.append(prompt)
+            if len(self.prompts) == 1:
+                return "1: 1 1\n2: duplicate slot\n3: remember this"
+            assert "The previous model response failed to parse or validate." in prompt
+            assert "Failure reason: Cannot choose the same slot more than once." in prompt
+            assert "Previous model response:\n1: 1 1" in prompt
+            return "1: 1 1\n2: duplicate slot again\n3: still remembered"
+
+    context_dir = tmp_path / "context"
+    context_dir.mkdir()
+    args = Namespace(
+        seed=1,
+        seed_mode="fixed",
+        log_dir=tmp_path / "logs",
+        context_dir=context_dir,
+        max_illegal=2,
+    )
+    ollama = FakeOllama()
+
+    result = run_one(args, ollama, 1)
+    entries = [json.loads(line) for line in Path(result["log"]).read_text().splitlines()]
+
+    assert len(ollama.prompts) == 2
+    assert "Previous model response:\n1: 1 1" in entries[0]["error"]
+    assert "Cannot choose the same slot more than once." in entries[0]["error"]
+
+
 def test_agent_run_one_reports_progress_updates(tmp_path):
     from argparse import Namespace
 

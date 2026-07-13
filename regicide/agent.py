@@ -197,7 +197,8 @@ Short-term memory from previous turn:
 {memory or '(none)'}
 
 Illegal moves so far: {illegal_moves}
-Last error: {last_error or 'none'}
+Last move error feedback (use this to fix your next response):
+{last_error or 'none'}
 
 Game state:
 {game.render()}
@@ -214,6 +215,21 @@ Current text files:
 Last game result JSON:
 {json.dumps(result, indent=2)}
 """
+
+
+def move_error_feedback(exc: Exception, response: str | None) -> str:
+    response_text = (response or "").strip()
+    reason = str(exc) or exc.__class__.__name__
+    if response_text:
+        return (
+            f"The previous model response failed to parse or validate.\n"
+            f"Failure reason: {reason}\n"
+            f"Previous model response:\n{response_text}"
+        )
+    return (
+        f"The previous move request failed before a model response could be used.\n"
+        f"Failure reason: {reason}"
+    )
 
 
 def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=print) -> dict:
@@ -236,6 +252,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
             before = game.render()
             memory_before = memory
             comment = ""
+            response = ""
             try:
                 progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
                 response = prompt_ollama(ollama, move_prompt(game, context, memory, illegal, last_error), progress=progress)
@@ -248,10 +265,9 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
                 last_error = ""
                 progress(f"[game {game_no} turn {turn + 1}] Move applied; new phase={game.phase.value}")
             except Exception as exc:  # keep games moving; illegal engine moves and ollama failures both count
-                response = locals().get("response", "")
                 slots = []
                 illegal += 1
-                last_error = str(exc)
+                last_error = move_error_feedback(exc, response)
                 progress(f"[game {game_no} turn {turn + 1}] Illegal move or agent error ({illegal}/{args.max_illegal}): {last_error}")
             turn += 1
             log.write(json.dumps({
