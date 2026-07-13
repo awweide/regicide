@@ -63,6 +63,7 @@ def test_ollama_connection_check_prints_steps_and_calls_tags_and_generate(fake_o
         "model": "test-model",
         "prompt": "Reply with exactly: pong",
         "stream": False,
+        "options": {"num_predict": 128, "temperature": 0.2},
     }
 
 

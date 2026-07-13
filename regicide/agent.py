@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import random
 import shutil
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -58,8 +60,10 @@ def _read_ollama_json(url: str, timeout: float) -> object:
 class Ollama:
     model: str
     url: str = "http://localhost:11434"
-    timeout: float = 20
-    retries: int = 2
+    timeout: float = 120
+    retries: int = 0
+    num_predict: int = 128
+    temperature: float = 0.2
 
     def check_connection(self, progress=print) -> dict:
         """Verify basic Ollama HTTP and generation communication with progress output."""
@@ -86,7 +90,7 @@ class Ollama:
 
         progress(f"[3/4] Sending a minimal non-streaming /api/generate prompt to model {self.model!r}")
         started = time.monotonic()
-        response = self.prompt("Reply with exactly: pong")
+        response = self.prompt("Reply with exactly: pong", progress=progress)
         elapsed = time.monotonic() - started
         result["response"] = response
         result["elapsed_seconds"] = round(elapsed, 3)
@@ -95,20 +99,40 @@ class Ollama:
         progress("[4/4] Ollama communication check completed successfully.")
         return result
 
-    def prompt(self, prompt: str) -> str:
-        body = json.dumps({"model": self.model, "prompt": prompt, "stream": False}).encode()
-        req = urllib.request.Request(
-            f"{self.url.rstrip('/')}/api/generate",
-            data=body,
-            headers={"Content-Type": "application/json"},
-        )
+    def prompt(self, prompt: str, progress=None) -> str:
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": self.num_predict,
+                "temperature": self.temperature,
+            },
+        }
+        body = json.dumps(payload).encode()
         last = None
         for attempt in range(self.retries + 1):
+            started = time.monotonic()
+            req = urllib.request.Request(
+                f"{self.url.rstrip('/')}/api/generate",
+                data=body,
+                headers={"Content-Type": "application/json"},
+            )
             try:
+                if progress is not None:
+                    progress(
+                        f"      Ollama attempt {attempt + 1}/{self.retries + 1} "
+                        f"(timeout={self.timeout:g}s, num_predict={self.num_predict})"
+                    )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    return json.loads(resp.read().decode()).get("response", "")
-            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+                    data = json.loads(resp.read().decode())
+                if progress is not None:
+                    progress(f"      Ollama attempt completed in {time.monotonic() - started:.2f}s")
+                return data.get("response", "")
+            except (urllib.error.URLError, TimeoutError, socket.timeout, json.JSONDecodeError) as exc:
                 last = exc
+                if progress is not None:
+                    progress(f"      Ollama attempt failed after {time.monotonic() - started:.2f}s: {exc}")
                 if attempt < self.retries:
                     time.sleep(0.5 * (attempt + 1))
         raise RuntimeError(f"ollama gave up after {self.retries + 1} attempt(s): {last}")
@@ -130,6 +154,14 @@ def snapshot_texts(context_dir: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     for path in text_paths(context_dir):
         shutil.copy2(path, output_dir / path.name)
+
+
+def prompt_ollama(ollama, prompt: str, progress=print) -> str:
+    """Call an Ollama-like object, passing progress when its prompt method supports it."""
+    prompt_func = ollama.prompt
+    if "progress" in inspect.signature(prompt_func).parameters:
+        return prompt_func(prompt, progress=progress)
+    return prompt_func(prompt)
 
 
 def game_seed(args: argparse.Namespace, game_no: int) -> int | None:
@@ -206,7 +238,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
             comment = ""
             try:
                 progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-                response = ollama.prompt(move_prompt(game, context, memory, illegal, last_error))
+                response = prompt_ollama(ollama, move_prompt(game, context, memory, illegal, last_error), progress=progress)
                 slots, comment, memory = parse_agent_response(response)
                 progress(f"[game {game_no} turn {turn + 1}] Model selected slot(s): {slots}")
                 if game.phase == Phase.PLAY:
@@ -278,8 +310,10 @@ def main() -> None:
     )
     parser.add_argument("--games", type=int, default=1)
     parser.add_argument("--max-illegal", type=int, default=10)
-    parser.add_argument("--timeout", type=float, default=20)
-    parser.add_argument("--retries", type=int, default=2)
+    parser.add_argument("--timeout", type=float, default=120, help="Seconds to wait for one Ollama /api/generate response.")
+    parser.add_argument("--retries", type=int, default=0, help="Retries after transport, timeout, or JSON errors. Illegal moves are not retried.")
+    parser.add_argument("--num-predict", type=int, default=128, help="Ollama num_predict option; keep small because only three short lines are needed.")
+    parser.add_argument("--temperature", type=float, default=0.2, help="Ollama temperature option for move generation.")
     parser.add_argument("--revise-between", action="store_true", help="After each game, ask Ollama to rewrite context-dir/strategy.txt.")
     parser.add_argument(
         "--check-ollama",
@@ -287,7 +321,7 @@ def main() -> None:
         help="Only test Ollama server communication, printing each progress step, then exit.",
     )
     args = parser.parse_args()
-    ollama = Ollama(args.model, args.ollama_url, args.timeout, args.retries)
+    ollama = Ollama(args.model, args.ollama_url, args.timeout, args.retries, args.num_predict, args.temperature)
     if args.check_ollama:
         print(json.dumps(ollama.check_connection(), indent=2))
         return
@@ -295,7 +329,7 @@ def main() -> None:
         result = run_one(args, ollama, game_no)
         if args.revise_between:
             print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-            text = ollama.prompt(revise_prompt(read_texts(args.context_dir), result))
+            text = prompt_ollama(ollama, revise_prompt(read_texts(args.context_dir), result), progress=print)
             args.context_dir.mkdir(parents=True, exist_ok=True)
             (args.context_dir / "strategy.txt").write_text(text)
             print(f"[game {game_no}] Wrote revised strategy notes to {args.context_dir / 'strategy.txt'}")

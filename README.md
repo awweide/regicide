@@ -78,7 +78,9 @@ By default the runner:
 - asks the model for a three-line response: move slots, an optional brief comment for the game log, and short-term memory to carry into the next turn of the same game;
 - writes logs to `agent_logs/`;
 - talks to `http://localhost:11434/api/generate` with `stream: false`;
-- uses a 20 second timeout, two retries, then gives up for that prompt;
+- limits generation with Ollama `options.num_predict` (128 by default) because move prompts only need three short lines;
+- uses a 120 second timeout and no retries by default, then gives up for that prompt;
+- prints per-attempt timing so slow model generation is distinguishable from move validation failures;
 - counts illegal engine moves and Ollama communication failures as illegal moves;
 - stops early after 10 illegal moves;
 - prints one JSON result per game with the terminal phase, illegal-move count, score, and log path.
@@ -110,9 +112,22 @@ python -m regicide.agent \
   --log-dir agent_logs \
   --seed 1 \
   --seed-mode fixed \
-  --timeout 10 \
-  --retries 1 \
+  --timeout 120 \
+  --retries 0 \
+  --num-predict 128 \
+  --temperature 0.2 \
   --max-illegal 10
+```
+
+
+### Troubleshooting Ollama timeouts
+
+The runner does not retry invalid Regicide moves inside a single turn. If a response is received but cannot be parsed or is illegal, that turn is logged immediately as an illegal move and the next prompt includes the engine error. Transport failures, timeouts, and malformed Ollama JSON are the only failures controlled by `--retries`.
+
+For large local models, the most common timeout cause is that non-streaming `/api/generate` must finish the whole response before the HTTP request returns. Use the per-attempt timing output to decide whether to raise `--timeout`, reduce `--num-predict`, or switch to a faster quantization/model. A useful diagnostic command is:
+
+```bash
+python -m regicide.agent --model qwen3.6:35b-a3b-bf16 --check-ollama --timeout 180 --retries 0 --num-predict 32
 ```
 
 Move responses use this format:
