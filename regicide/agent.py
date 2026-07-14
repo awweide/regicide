@@ -43,8 +43,6 @@ def parse_agent_response(response: str) -> tuple[list[int], str, str]:
             sections[current].append(line)
 
     move_text = "\n".join(part for part in sections["move"] if part).strip()
-    if not move_text:
-        move_text = response.strip()
     comment = limit_words("\n".join(part for part in sections["comment"] if part))
     memory = limit_words("\n".join(part for part in sections["memory"] if part))
     return parse_slots(move_text), comment, memory
