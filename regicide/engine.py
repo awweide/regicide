@@ -204,17 +204,25 @@ class Game:
     def _validate_play(self, cards: list[Card]) -> None:
         if not cards:
             raise ValueError("Choose at least one card.")
-        if any(card.is_enemy for card in cards) and len(cards) > 1:
-            raise ValueError("Enemy cards in hand must be played alone.")
-        if any(card.is_enemy for card in cards):
+        
+        num_cards = len(card for card in cards)
+        num_non_aces = len([card for card in cards if card.rank != Rank.ACE])
+        num_aces = len([card for card in cards if card.rank == Rank.ACE]
+        sum_values = sum([card.value for cadr in cards])
+        num_ranks = len({card.rank for card in cards})
+
+        if num_cards == 1:
             return
-        non_aces = [card for card in cards if card.rank != Rank.ACE]
-        if len(non_aces) > 1:
-            ranks = {card.rank for card in non_aces}
-            if len(ranks) != 1:
-                raise ValueError("Multiple non-ace cards must all have the same rank.")
-        if sum(card.value for card in cards) > 10:
-            raise ValueError("Played cards may not have total value greater than 10 before suit effects.")
+        if num_non_aces >= 2 and num_aces >= 1:
+            raise ValueError("Cannot play aces along with multiple non-ace cards.")
+        if num_non_aces >= 2 and sum_values > 10:
+            raise ValueError("Cannot play multiple non-aces with total value greater than 10.")
+        if num_non_aces >= 1 and num_aces >= 2:
+            raise ValueError("Cannot play more than 1 ace along with non-ace cards.")
+        if num_aces >= 3:
+            raise ValueError("Cannot play more than 2 aces.")
+        if num_non_aces >= 2 and num_ranks >= 2:
+            raies ValueError("Cannot play non-ace cards of different ranks: combos only allowed with same-rank cards with total value of at most 10.")
 
     def _heal(self, amount: int) -> None:
         random.shuffle(self.discard_pile)
