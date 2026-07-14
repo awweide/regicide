@@ -60,10 +60,11 @@ def _read_ollama_json(url: str, timeout: float) -> object:
 class Ollama:
     model: str
     url: str = "http://localhost:11434"
-    timeout: float = 120
+    timeout: float = 300
     retries: int = 0
-    num_predict: int = 128
+    num_predict: int = 25000
     temperature: float = 0.2
+    think: bool = True
 
     def check_connection(self, progress=print) -> dict:
         """Verify basic Ollama HTTP and generation communication with progress output."""
@@ -105,6 +106,7 @@ class Ollama:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
+            "think": self.think,
             "options": {
                 "num_predict": self.num_predict,
                 "temperature": self.temperature,
