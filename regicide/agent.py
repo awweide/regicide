@@ -128,7 +128,7 @@ class Ollama:
                     )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode())
-                    r = data.get("reponse")
+                    r = data.get("response")
                     print(f"Response: {r}")
                 if progress is not None:
                     progress(f"      Ollama attempt completed in {time.monotonic() - started:.2f}s")
@@ -215,8 +215,9 @@ Last move error feedback (use this to fix your next response):
 
 
 def revise_prompt(context: str, result: dict) -> str:
-    return f"""Revise your Regicide strategy notes for the next game.
-Return only the complete new contents of strategy.txt.
+    return f"""Revise strategy.txt based on how the previous game played out. Return only the complete new contents of strategy.txt.
+Make sure to retain the useful parts of the old strategy.txt. Focus on improving expected score, by avoiding illegal moves and progressing by defeating more enemies. 
+Avoid bloat: tips and tricks should be simple enough that it is useful to include in the context of the agent for every move prompt.
 
 Current text files:
 {context}
