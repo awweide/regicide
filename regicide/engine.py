@@ -125,6 +125,9 @@ class Game:
         defeated_enemy = self._apply_play(play)
         self._compact_hand()
         if not defeated_enemy and self.phase == Phase.PLAY and self.active_enemy is not None:
+            if self.incoming_attack == 0:
+                self.phase = Phase.PLAY
+                self.message = f"Incoming attack fully blocked. Skipping discard phase."
             if sum(card.value for card in self.hand if card is not None) < self.incoming_attack:
                 self.phase = Phase.LOST
                 self.message = "Enemy attack cannot be absorbed. You lose."
