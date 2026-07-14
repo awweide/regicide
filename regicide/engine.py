@@ -210,7 +210,7 @@ class Game:
         
         num_cards = len(card for card in cards)
         num_non_aces = len([card for card in cards if card.rank != Rank.ACE])
-        num_aces = len([card for card in cards if card.rank == Rank.ACE]
+        num_aces = len([card for card in cards if card.rank == Rank.ACE])
         sum_values = sum([card.value for cadr in cards])
         num_ranks = len({card.rank for card in cards})
 
