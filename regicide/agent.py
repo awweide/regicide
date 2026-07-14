@@ -216,8 +216,9 @@ Last move error feedback (use this to fix your next response):
 
 def revise_prompt(context: str, result: dict) -> str:
     return f"""Revise strategy.txt based on how the previous game played out. Return only the complete new contents of strategy.txt.
-Make sure to retain the useful parts of the old strategy.txt. Focus on improving expected score, by avoiding illegal moves and progressing by defeating more enemies. 
-Avoid bloat: tips and tricks should be simple enough that it is useful to include in the context of the agent for every move prompt.
+Make sure to retain the useful parts of the old strategy.txt. Focus on improving expected score, by avoiding illegal moves and progressing by defeating more enemies.
+Try to understand why the game was won or lose and identify moves which were weak and how the mistakes could have been avoided.  
+Avoid bloat: tips and tricks should be simple enough that they are useful to include in the context of the agent for every move prompt.
 
 Current text files:
 {context}
@@ -355,10 +356,12 @@ def main() -> None:
         result = run_one(args, ollama, game_no)
         if args.revise_between:
             print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
+            ollama.num_predict *= 10; ollama.timeout *= 10
             text = prompt_ollama(ollama, revise_prompt(read_texts(args.context_dir), result), progress=print)
             args.context_dir.mkdir(parents=True, exist_ok=True)
             (args.context_dir / "strategy.txt").write_text(text)
             print(f"[game {game_no}] Wrote revised strategy notes to {args.context_dir / 'strategy.txt'}")
+            ollama.num_predict /= 10; ollama.timeout /= 10
 
 
 if __name__ == "__main__":
