@@ -263,21 +263,21 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
             comment = ""
             response = ""
             try:
-                progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
+                progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
                 response = prompt_ollama(ollama, move_prompt(game, context, memory, illegal, last_error), progress=progress)
                 slots, comment, memory = parse_agent_response(response)
-                progress(f"[game {game_no} turn {turn + 1}] Model selected slot(s): {slots}")
+                progress(f"game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Model selected slot(s): {slots}")
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
                 else:
                     game.discard_slots(slots)
                 last_error = ""
-                progress(f"[game {game_no} turn {turn + 1}] Move applied; new phase={game.phase.value}")
+                progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Move applied; new phase={game.phase.value}")
             except Exception as exc:  # keep games moving; illegal engine moves and ollama failures both count
                 slots = []
                 illegal += 1
                 last_error = move_error_feedback(exc, response)
-                progress(f"[game {game_no} turn {turn + 1}] Illegal move or agent error ({illegal}/{args.max_illegal}): {last_error}")
+                progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Illegal move or agent error ({illegal}/{args.max_illegal}): {last_error}")
             turn += 1
             log.write(json.dumps({
                 "turn": turn,
