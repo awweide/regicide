@@ -101,7 +101,6 @@ class Ollama:
         return result
 
     def prompt(self, prompt: str, progress=None) -> str:
-        print(f"Debugging: this is the prompt passed to the LLM: {prompt}")
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -129,7 +128,8 @@ class Ollama:
                     )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode())
-                    print(f"Debugging: this is the data returned from the LLM after decoding: {data}")
+                    r = data.get("reponse")
+                    print(f"Response: {r}")
                 if progress is not None:
                     progress(f"      Ollama attempt completed in {time.monotonic() - started:.2f}s")
                 return data.get("response", "")
