@@ -335,10 +335,10 @@ def main() -> None:
     )
     parser.add_argument("--games", type=int, default=1)
     parser.add_argument("--max-illegal", type=int, default=10)
-    parser.add_argument("--timeout", type=float, default=120, help="Seconds to wait for one Ollama /api/generate response.")
+    parser.add_argument("--timeout", type=float, default=300, help="Seconds to wait for one Ollama /api/generate response.")
     parser.add_argument("--retries", type=int, default=0, help="Retries after transport, timeout, or JSON errors. Illegal moves are not retried.")
-    parser.add_argument("--num-predict", type=int, default=128, help="Ollama num_predict option; keep small because only three short lines are needed.")
-    parser.add_argument("--temperature", type=float, default=0.2, help="Ollama temperature option for move generation.")
+    parser.add_argument("--num-predict", type=int, default=25000, help="Ollama num_predict option; keep small because only three short lines are needed.")
+    parser.add_argument("--temperature", type=float, default=0.5, help="Ollama temperature option for move generation.")
     parser.add_argument("--revise-between", action="store_true", help="After each game, ask Ollama to rewrite context-dir/strategy.txt.")
     parser.add_argument(
         "--check-ollama",
