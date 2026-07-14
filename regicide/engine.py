@@ -208,10 +208,10 @@ class Game:
         if not cards:
             raise ValueError("Choose at least one card.")
         
-        num_cards = len(card for card in cards)
+        num_cards = len([card for card in cards])
         num_non_aces = len([card for card in cards if card.rank != Rank.ACE])
         num_aces = len([card for card in cards if card.rank == Rank.ACE])
-        sum_values = sum([card.value for cadr in cards])
+        sum_values = sum([card.value for card in cards])
         num_ranks = len({card.rank for card in cards})
 
         if num_cards == 1:
