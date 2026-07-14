@@ -100,6 +100,7 @@ class Ollama:
         return result
 
     def prompt(self, prompt: str, progress=None) -> str:
+        print(f"Debugging: this is the prompt passed to the LLM: {prompt}")
         payload = {
             "model": self.model,
             "prompt": prompt,
@@ -126,6 +127,7 @@ class Ollama:
                     )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode())
+                    print(f"Debugging: this is the data returned from the LLM after decoding: {data}")
                 if progress is not None:
                     progress(f"      Ollama attempt completed in {time.monotonic() - started:.2f}s")
                 return data.get("response", "")
@@ -181,16 +183,24 @@ def score(game: Game, illegal_moves: int) -> int:
 
 
 def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
-    return f"""You are playing solo Regicide. Use a legal move for the current phase.
-Reply in this exact three-line format:
+    return f"""You are playing solo Regicide. Reply in this exact three-line format:
 1: <hand slot numbers, e.g. 1 3>
-2: <optional brief comment, up to 200 words, explaining the choice>
-3: <short-term memory for the next turn in this game, up to 200 words>
+2: <optional brief comment, up to 200 words, explaining the choice in the game log>
+3: <short-term memory, up to 200 words, carried over to the next turn of the game>
 
+For example, this is a good attempt at a valid response:
+1: 7
+2: Play spades against undamaged enemy to maximize value
+3: Nothing important to remember.
+
+This is the current game state:
+{game.render()}
+
+Use the rules and strategies to determine valid and good plays.
 The comment is logged for later strategy revision but is not shown to future move prompts.
 The memory is passed to your next move prompt in this same game; use it for facts like known top draw-pile cards or remaining enemies.
 
-Local context:
+Rules for the game and self-discovered advice for how to play:
 {context}
 
 Short-term memory from previous turn:
@@ -199,9 +209,6 @@ Short-term memory from previous turn:
 Illegal moves so far: {illegal_moves}
 Last move error feedback (use this to fix your next response):
 {last_error or 'none'}
-
-Game state:
-{game.render()}
 """
 
 
