@@ -225,7 +225,7 @@ class Game:
         if num_aces >= 3:
             raise ValueError("Cannot play more than 2 aces.")
         if num_non_aces >= 2 and num_ranks >= 2:
-            raies ValueError("Cannot play non-ace cards of different ranks: combos only allowed with same-rank cards with total value of at most 10.")
+            raise ValueError("Cannot play non-ace cards of different ranks: combos only allowed with same-rank cards with total value of at most 10.")
 
     def _heal(self, amount: int) -> None:
         random.shuffle(self.discard_pile)
