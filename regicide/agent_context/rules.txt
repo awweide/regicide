@@ -1,0 +1,78 @@
+AIM OF THE GAME
+Regicide is a game played with a standard deck of cards, trying to defeat 12 powerful enemies (Jacks, Queens and Kings of all suits). Each turn, play cards from hand to deal damage to the enemy and once enough damage is dealt, the enemy is defeated. The players win when the last King is defeated. But each turn the enemy strikes back. The player must discard cards to satisfy the damage and if they can’t discard enough, loses the game.
+
+SETUP
+The Enemy pile consists, bottom to top, of 4 shuffled Kings, 4 shuffled Queens and 4 shuffled Jacks. Reveal the top card. This will become the current enemy. Shuffle together all the cards numbered 2 to 10 with the 4 Animal Companions (Aces) to form your Draw pile. The Draw pile is where cards are dealt and drawn from. During the game place any discarded cards into a shared discard pile. The players draws cards up to his max hand size (8).
+
+HOW TO PLAY
+On their turn a player will play cards from their hand to deal damage to the current enemy in order to defeat it. The values on the cards determine damage, while the suit provides a special power.
+Each turn has four steps:
+Step 1 - Play cards (prompted for play form hand)
+Step 2 - Activate the suit power (automated)
+Step 3 - Deal damage to the enemy and check (automated)
+Step 4 - Suffer damage from the enemy (prompted for discard from hand)
+
+STEP ONE
+Play a card from hand to attack the enemy
+Play a card from your hand onto the table in front of
+you. The number of the card determines the attack
+value. So if a 7 of Hearts is played, the attack value is
+
+STEP TWO
+Activate the played card’s suit power
+Playing a card to damage the enemy also grants a power associated with the suit of that card. Powers from red suits are resolved straight away, powers from black suits take effect in later steps.
+
+HEARTS
+Heal from the discard: Shuffle the discard pile then count out a number of cards facedown equal to the attack value played. Place them under the Draw pile then, return the discard pile to the table, faceup.
+
+DIAMONDS
+Draw cards: The player draws cards one card at a time until a number of cards equal to the attack value played have been drawn or max hand size (8) is reached.
+
+CLUBS
+Double damage: During Step 3, damage dealt by clubs counts for double. E.g., The 8 of Clubs deals 16 damage.
+
+SPADES
+Shield against enemy attack: During Step 4, reduce the attack value of the current enemy by the attack value played. The shield effects of spades are cumulative for all spades played against this enemy, and remain in effect until the enemy is defeated.
+
+Suit powers are mandatory and cannot be skipped.
+
+STEP THREE
+Deal damage and check to see if the enemy is defeated
+Enemy Attack Health
+Jack 10 20
+Queen 15 30
+King 20 40
+
+Damage equal to the attack value of the played card is now dealt to the enemy. Check to see if the total damage dealt by the player so far is equal to or greater than the enemy’s health. For example if facing a Jack and one player deals 9 damage in their turn, then another player deals 12 damage in their turn, the total damage currently dealt would be 21 so the enemy would be defeated.
+If the enemy is defeated, do the following:
+(i) Place the enemy in the discard pile. If the players have dealt damage exactly equal to the enemy’s health, place it facedown on top of the Draw pile instead.
+(ii) Place all cards played by players against the enemy in the discard pile.
+(iii) Turn the next card of the Enemy pile face up.
+(iv) The player skips Step 4 and begins a new turn against the enemy just revealed, starting at Step 1.
+
+STEP FOUR
+Suffer damage from the enemy by discarding cards
+If not defeated, the enemy attacks the player by dealing damage equal to that enemy’s attack value. Remember to reduce the enemy’s attack value by the total value of Spades that players have
+played against the enemy.
+
+The player must discard cards from their hand with a total value at least equal to the enemy’s attack value. Discard the cards one at a time, faceup to the discard pile. Animal Companions (A) have a value of 1 when discarded to cover damage. If the player cannot discard enough cards to satisfy the damage, he loses the game. It’s ok to have an empty hand. After suffering damage, the player begins a new turn, starting at Step 1.
+
+ANIMAL COMPANIONS
+In Step 1, Animal Companions can be played on their own, but may also be paired with one other card. Animal Companions count as 1 towards the attack total and their suit power
+is also applied. For example, when playing the 8 of Diamonds with the Animal Companion of Clubs the attack value is 9 and the effects of both suit powers are applied for 9: 9 cards are drawn and 18 damage is dealt. Any time where both a Hearts power and Diamonds power are resolved together, resolve the Hearts healing before drawing with Diamonds.
+
+Animal Companions can also be paired with one other Animal Companion. If you play an Animal Companion with another card of the same suit, you only apply the suit power once.
+
+COMBOS
+In Step 1, instead of playing a single card, the player can combine cards together in sets of 2, 3 or 4 of the  same number as long as the combined total of the  cards played equals 10 or less. Animal Companions cannot be added to a combo or played as a combo on their own; they can only ever be paired with one other card (which could be another Animal Companion). So players can play a pair of 2s, 3s, 4s, or 5s, triple 2s and 3s, or quadruple 2s. When these cards are played together all suit powers are resolved at the total attack value. For example, if a player plays the 3 of Diamonds, Spades and Clubs together, the player will draw 9 cards, reduce the enemy’s attack value by 9 and deal 18 damage. Any time where both a Hearts power and Diamonds power are resolved together, resolve the Hearts healing before drawing with Diamonds.
+
+ENEMY IMMUNITY
+Each enemy is immune to the suit powers of cards played against them which match their suit. For example, players will not draw cards when a diamond is played against the Jack of Diamonds
+(however the number is still added to the damage total). (Spades won’t block damage against Jack of Spades)
+
+DRAWING A DEFEATED ENEMY
+Jacks in hand count as a 10, Queens in hand count as a 15 and Kings in hand count as a 20. These values are applied when either playing them as an attack card or discarding them from hand to suffer damage. Their suit power is applied as normal when played.
+
+GAME END
+The game ends when the player wins by defeating the last King or when the player loses because a he is unable to satisfy the damage dealt by an enemy. The players also lose if he is unable
+to play a card on his turn.
