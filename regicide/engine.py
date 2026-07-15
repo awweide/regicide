@@ -205,8 +205,8 @@ class Game:
             self.message = f"Defeated {defeated}."
 
     def _validate_play(self, cards: list[Card]) -> None:
-        if not cards:
-            raise ValueError("Choose at least one card.")
+        if not cards and not all(c is None for c in self.hand):
+            raise ValueError("Cannot play no cards unless hand is empty.")
         
         num_cards = len([card for card in cards])
         num_non_aces = len([card for card in cards if card.rank != Rank.ACE])
