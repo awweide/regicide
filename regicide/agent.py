@@ -183,7 +183,7 @@ def score(game: Game, illegal_moves: int) -> int:
 
 
 def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
-    return f"""You are playing solo Regicide. Reply in this exact three-line format:
+    return f"""You are playing solo Regicide. Reply only in this exact three-line format:
 1: <hand slot numbers, e.g. 1 3>
 2: <optional brief comment, up to 200 words, explaining the choice in the game log>
 3: <short-term memory, up to 200 words, carried over to the next turn of the game>
@@ -191,10 +191,13 @@ def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_
 For example, this is a good attempt at a valid response:
 1: 7
 2: Play spades against undamaged enemy to maximize value
-3: Nothing important to remember.
+3: Nothing important to remember
 
 This is the current game state:
 {game.render()}
+
+Short-term memory from previous turn:
+{memory or '(none)'}
 
 Use the rules and strategies to determine valid and good plays.
 The comment is logged for later strategy revision but is not shown to future move prompts.
@@ -203,19 +206,27 @@ The memory is passed to your next move prompt in this same game; use it for fact
 Rules for the game and self-discovered advice for how to play:
 {context}
 
+Illegal moves so far: {illegal_moves}
+Last move error feedback (use this to fix your next response): {last_error or 'none'}
+
+Repeating the key task:
+Reply only in this exact three-line format:
+1: <hand slot numbers, e.g. 1 3>
+2: <optional brief comment, up to 200 words, explaining the choice in the game log>
+3: <short-term memory, up to 200 words, carried over to the next turn of the game>
+
+This is the current game state:
+{game.render()}
+
 Short-term memory from previous turn:
 {memory or '(none)'}
-
-Illegal moves so far: {illegal_moves}
-Last move error feedback (use this to fix your next response):
-{last_error or 'none'}
 """
 
 
 def revise_prompt(context: str, result: dict) -> str:
     return f"""Revise strategy.txt based on how the previous game played out. Return only the complete new contents of strategy.txt.
 Make sure to retain the useful parts of the old strategy.txt. Focus on improving expected score, by avoiding illegal moves and progressing by defeating more enemies.
-Try to understand why the game was won or lose and identify moves which were weak and how the mistakes could have been avoided.  
+Try to understand why the game was won or lost and identify moves which were weak and how the mistakes could have been avoided.  
 Avoid bloat: tips and tricks should be simple enough that they are useful to include in the context of the agent for every move prompt.
 
 Current text files:
