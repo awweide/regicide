@@ -127,7 +127,7 @@ class Ollama:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode())
                     r = data.get("response")
-                    print(f"Response: {r}")
+                    #print(f"Response: {r}")
                 if progress is not None:
                     progress(f"      Ollama attempt completed in {time.monotonic() - started:.2f}s")
                 return data.get("response", "")
@@ -188,14 +188,17 @@ def score(game: Game, illegal_moves: int) -> int:
 
 def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
     return f"""You are playing solo Regicide. Reply only in this exact three-line format:
-1: <hand slot numbers, e.g. 1 3>
+1: <hand slot numbers>
 2: <optional brief comment, up to 200 words, explaining the choice in the game log>
 3: <short-term memory, up to 200 words, carried over to the next turn of the game>
 
 For example, this is a good attempt at a valid response:
-1: 7
+1: 1 7
 2: Play spades against undamaged enemy to maximize value
 3: Nothing important to remember
+The following are also correctly formatted:
+1: 5 (single card)
+1: (no card: allowed only with empty hand)
 
 This is the current game state:
 {game.render()}
@@ -215,7 +218,7 @@ Last move error feedback (use this to fix your next response): {last_error or 'n
 
 Repeating the key task:
 Reply only in this exact three-line format:
-1: <hand slot numbers, e.g. 1 3>
+1: <hand slot numbers>
 2: <optional brief comment, up to 200 words, explaining the choice in the game log>
 3: <short-term memory, up to 200 words, carried over to the next turn of the game>
 
@@ -269,23 +272,23 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
     with log_path.open("w") as log:
         turn = 0
         while game.phase not in {Phase.WON, Phase.LOST} and illegal < args.max_illegal:
-            progress(f"[game {game_no} turn {turn + 1}] Phase={game.phase.value}; illegal moves={illegal}/{args.max_illegal}")
+            progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Phase={game.phase.value}; illegal moves={illegal}/{args.max_illegal}")
             context = (args.run_dir / f"{game_no-1:03d}_strategy.txt").read_text(errors="replace")
             before = game.render()
             memory_before = memory
             comment = ""
             response = ""
             try:
-                progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
+                #progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
                 response = prompt_ollama(ollama, move_prompt(game, context, memory, illegal, last_error), progress=progress)
                 slots, comment, memory = parse_agent_response(response)
-                progress(f"game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Model selected slot(s): {slots}")
+                #progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Model selected slot(s): {slots}")
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
                 else:
                     game.discard_slots(slots)
                 last_error = ""
-                progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Move applied; new phase={game.phase.value}")
+                #progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Move applied; new phase={game.phase.value}")
             except Exception as exc:  # keep games moving; illegal engine moves and ollama failures both count
                 slots = []
                 illegal += 1
