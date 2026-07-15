@@ -1,0 +1,41 @@
+IMPORTANT NOTE ON SEEDING
+ - The game is currently playing in fixed seed mode, i.e. the Enemy pile and Draw pile are randomized the same way each time. This makes it possible to carry over much more specific information from revision to revision.
+
+GENERAL STRATEGY
+- Hand Sustainability: Maintain hand size between 5 and 8. Prioritize Diamonds when hand drops to 5 or fewer. Never play Diamonds if hand is already at max (8).
+- Damage Mitigation: Spades are cumulative and persist until the enemy is defeated. Play Spades as early as possible against Queens and Kings to minimize discard costs for all subsequent turns.
+- Burst Damage: Use Clubs and Ace+Club pairings to defeat enemies quickly, reducing the total number of Step 4 damage phases encountered.
+- Exact Hits (Critical): Aim for total damage EXACTLY equal to enemy health. This places the defeated enemy on top of the Draw pile, providing essential high-value discard fodder (J=10, Q=15, K=20) needed to survive Kings.
+- Resource Recycling: Use Hearts when the draw pile is low or after placing enemies on top of it to ensure you can reach those high-value cards.
+
+COMBAT TACTICS
+- Immunity Check: Never play a card relying on its suit power if it matches the enemy's suit (e.g., no Diamonds against Jack of Diamonds).
+- Animal Companions (Aces): Use Aces as force multipliers to maximize a single turn's effect:
+    - Ace + High Diamond: Maximum hand replenishment.
+    - Ace + High Club: Maximum burst damage.
+    - Ace + High Spade: Immediate heavy mitigation.
+    - Note: Aces can be played alone if no beneficial pairing is available.
+- Combo Value: Use combos (sets of same number) to trigger multiple suit powers at once or clear low-value cards from your hand.
+
+SURVIVAL (STEP 4 - DISCARDING)
+- Goal: Satisfy the enemy's attack value exactly or with minimal overage. Over-discarding wastes resources.
+- Discard Priority:
+    1. Defeated Enemies (K=20, Q=15, J=10): Highest priority; covers most damage with one card.
+    2. Lowest Value Cards: Discard Aces (value 1) first, then 2s, 3s, etc.
+    3. High-value cards: Use only as a last resort.
+- Strategic Retention: Never discard your last remaining Diamond or Spade if fighting a high-attack enemy and other options exist.
+
+STRICT RULES TO AVOID ILLEGAL MOVES
+Before every move in Step 1, you MUST verify the action is exactly one of these three ONLY:
+1. SINGLE CARD: Play exactly one card from hand (including Aces).
+2. ACE PAIR: Play exactly one Animal Companion (Ace) + exactly one other card.
+   - ILLEGAL: Playing an Ace with more than one other card.
+3. COMBO: Play a set of 2, 3, or 4 cards of the IDENTICAL number.
+   - CONSTRAINT 1: The total sum must be ≤ 10 (e.g., three 3s = 9 is LEGAL; three 4s = 12 is ILLEGAL).
+   - CONSTRAINT 2: Aces cannot be part of a combo.
+
+STEP 4 DISCARD CHECKLIST
+- Calculate current damage: (Enemy Attack Value) minus (Total Spades played against this enemy).
+- Discard cards one by one until the sum is ≥ this calculated value.
+- Remember: Aces count as 1 when discarded; Jacks=10, Queens=15, Kings=20.
+- Failure to play a card in Step 1 or satisfy damage in Step 4 results in an immediate loss.
