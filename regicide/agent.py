@@ -234,7 +234,7 @@ def revise_prompt(context: str, result: dict) -> str:
     return f"""Revise strategy.txt based on how the previous game played out. Return only the complete new contents of strategy.txt.
 Make sure to retain the useful parts of the old strategy.txt. Focus on improving expected score, by avoiding illegal moves and progressing by defeating more enemies.
 Try to understand why the game was won or lost and identify moves which were weak and how the mistakes could have been avoided.  
-Avoid bloat: tips and tricks should be simple enough that they are useful to include in the context of the agent for every move prompt.
+Every game is played with the same seed, such that enemies and draws will be ordered the same in each game. Take advantage of this to memorize "random" draws across games and to figure out which moves work and don't work by trial and error.
 
 Current text files:
 {context}
