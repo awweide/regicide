@@ -292,7 +292,7 @@ class Game:
             f"Enemy pile ({len(self.enemy_pile)})",
             f"Active enemy: {enemy}",
             f"Enemy current/base health: {self.active_enemy_health - self.enemy_damage}/{self.active_enemy_health} ",
-            f"Enemy attack after/before reduction: {self.incoming_attack/ENEMY_ATTACK[self.active_enemy.rank]}",
+            f"Enemy attack after/before reduction: {self.incoming_attack}/{ENEMY_ATTACK[self.active_enemy.rank]}",
             f"In play: {in_play}",
             "Hand:",
             *self._render_hand_rows(),
