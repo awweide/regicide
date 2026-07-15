@@ -152,10 +152,14 @@ def read_texts(folder: Path) -> str:
     return "\n\n".join(parts) or "(no local context files yet)"
 
 
-def snapshot_texts(context_dir: Path, output_dir: Path) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for path in text_paths(context_dir):
-        shutil.copy2(path, output_dir / path.name)
+def create_run_dir(log_root: Path) -> Path:
+    log_root.mkdir(parents=True, exist_ok=True)
+    for i in range(1,1000):
+        d=log_root/f"run_{i:03d}"
+        if not d.exists():
+            d.mkdir()
+            return d
+    raise RuntimeError("No free run directory.")
 
 
 def prompt_ollama(ollama, prompt: str, progress=print) -> str:
@@ -258,17 +262,15 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
     illegal = 0
     last_error = ""
     memory = ""
-    game_dir = args.log_dir / f"game-{game_no:03d}-{int(time.time())}"
-    log_path = game_dir / "game.jsonl"
+    log_path = args.run_dir / f"{game_no-1:03d}_log.jsonl"
     progress(f"[game {game_no}] Starting game with seed={seed!r} (seed mode: {args.seed_mode})")
     progress(f"[game {game_no}] Writing detailed turn log to {log_path}")
-    snapshot_texts(args.context_dir, game_dir / "context")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("w") as log:
         turn = 0
         while game.phase not in {Phase.WON, Phase.LOST} and illegal < args.max_illegal:
             progress(f"[game {game_no} turn {turn + 1}] Phase={game.phase.value}; illegal moves={illegal}/{args.max_illegal}")
-            context = read_texts(args.context_dir)
+            context = (args.run_dir / f"{game_no-1:03d}_strategy.txt").read_text(errors="replace")
             before = game.render()
             memory_before = memory
             comment = ""
@@ -314,7 +316,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
         "score": score(game, illegal),
         "illegal_moves": illegal,
         "log": str(log_path),
-        "output_dir": str(game_dir),
+        "output_dir": str(args.run_dir),
     }
     print(json.dumps(result))
     return result
@@ -361,15 +363,18 @@ def main() -> None:
     if args.check_ollama:
         print(json.dumps(ollama.check_connection(), indent=2))
         return
+    args.run_dir = create_run_dir(args.log_dir)
+    shutil.copy2(args.context_dir / "strategy.txt", args.run_dir / "000_strategy.txt")
+
     for game_no in range(1, args.games + 1):
         result = run_one(args, ollama, game_no)
         if args.revise_between:
             print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
             ollama.num_predict *= 10; ollama.timeout *= 10
-            text = prompt_ollama(ollama, revise_prompt(read_texts(args.context_dir), result), progress=print)
-            args.context_dir.mkdir(parents=True, exist_ok=True)
-            (args.context_dir / "strategy.txt").write_text(text)
-            print(f"[game {game_no}] Wrote revised strategy notes to {args.context_dir / 'strategy.txt'}")
+            current=(args.run_dir / f"{game_no-1:03d}_strategy.txt").read_text(errors="replace")
+            text = prompt_ollama(ollama, revise_prompt(current, result), progress=print)
+            (args.run_dir / f"{game_no:03d}_strategy.txt").write_text(text)
+            print(f"[game {game_no}] Wrote revised strategy notes")
             ollama.num_predict /= 10; ollama.timeout /= 10
 
 
