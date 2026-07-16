@@ -383,7 +383,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
         "log": str(log_path),
         "output_dir": str(args.run_dir),
     }
-    for key,val in result: print(f"{key}: {value}")
+    for key,val in result.items(): print(f"{key}: {value}")
     log.write(json.dumps(result) + "\n")
     return result
 
