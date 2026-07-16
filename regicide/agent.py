@@ -99,113 +99,113 @@ class Ollama:
         progress("[4/4] Ollama communication check completed successfully.")
         return result
 
-def prompt(self, prompt: str, progress=None) -> str:
-    payload = {
-        "model": self.model,
-        "prompt": prompt,
-        "stream": self.stream,
-        "think": self.think,
-        "options": {
-            "num_predict": self.num_predict,
-            "temperature": self.temperature,
-        },
-    }
-
-    body = json.dumps(payload).encode()
-    last = None
-
-    for attempt in range(self.retries + 1):
-        started = time.monotonic()
-        req = urllib.request.Request(
-            f"{self.url.rstrip('/')}/api/generate",
-            data=body,
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            if progress is not None:
-                progress(
-                    f"      Ollama attempt {attempt + 1}/{self.retries + 1} "
-                    f"(timeout={self.timeout:g}s, num_predict={self.num_predict}, "
-                    f"stream={stream})"
-                )
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                if not stream:
-                    data = json.loads(resp.read().decode())
-                    result = data.get("response", "")
-
+    def prompt(self, prompt: str, progress=None) -> str:
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": self.stream,
+            "think": self.think,
+            "options": {
+                "num_predict": self.num_predict,
+                "temperature": self.temperature,
+            },
+        }
+    
+        body = json.dumps(payload).encode()
+        last = None
+    
+        for attempt in range(self.retries + 1):
+            started = time.monotonic()
+            req = urllib.request.Request(
+                f"{self.url.rstrip('/')}/api/generate",
+                data=body,
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                if progress is not None:
+                    progress(
+                        f"      Ollama attempt {attempt + 1}/{self.retries + 1} "
+                        f"(timeout={self.timeout:g}s, num_predict={self.num_predict}, "
+                        f"stream={stream})"
+                    )
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    if not stream:
+                        data = json.loads(resp.read().decode())
+                        result = data.get("response", "")
+    
+                        if progress is not None:
+                            progress(
+                                f"      Ollama attempt completed in "
+                                f"{time.monotonic() - started:.2f}s"
+                            )
+                        return result
+    
+                    # Streaming mode
+                    response_parts = []
+                    thinking_parts = []
+                    
+                    response_buffer = []
+                    thinking_buffer = []
+                    
+                    last_flush = time.monotonic()
+                    
+                    for raw in resp:
+                        if not raw:
+                            continue
+                    
+                        chunk = json.loads(raw.decode())
+                    
+                        thinking = chunk.get("thinking")
+                        if thinking:
+                            thinking_parts.append(thinking)
+                            thinking_buffer.append(thinking)
+                    
+                        text = chunk.get("response")
+                        if text:
+                            response_parts.append(text)
+                            response_buffer.append(text)
+                    
+                        now = time.monotonic()
+                        if progress is not None and now - last_flush > 0.25:
+                    
+                            if thinking_buffer:
+                                progress("[thinking] " + "".join(thinking_buffer))
+                                thinking_buffer.clear()
+                    
+                            if response_buffer:
+                                progress("[response] " + "".join(response_buffer))
+                                response_buffer.clear()
+                    
+                            last_flush = now
+                    
+                        if chunk.get("done"):
+                            break
+                    
+                    # Flush anything left over.
                     if progress is not None:
-                        progress(
-                            f"      Ollama attempt completed in "
-                            f"{time.monotonic() - started:.2f}s"
-                        )
-                    return result
-
-                # Streaming mode
-                response_parts = []
-                thinking_parts = []
-                
-                response_buffer = []
-                thinking_buffer = []
-                
-                last_flush = time.monotonic()
-                
-                for raw in resp:
-                    if not raw:
-                        continue
-                
-                    chunk = json.loads(raw.decode())
-                
-                    thinking = chunk.get("thinking")
-                    if thinking:
-                        thinking_parts.append(thinking)
-                        thinking_buffer.append(thinking)
-                
-                    text = chunk.get("response")
-                    if text:
-                        response_parts.append(text)
-                        response_buffer.append(text)
-                
-                    now = time.monotonic()
-                    if progress is not None and now - last_flush > 0.25:
-                
                         if thinking_buffer:
                             progress("[thinking] " + "".join(thinking_buffer))
-                            thinking_buffer.clear()
-                
                         if response_buffer:
                             progress("[response] " + "".join(response_buffer))
-                            response_buffer.clear()
-                
-                        last_flush = now
-                
-                    if chunk.get("done"):
-                        break
-                
-                # Flush anything left over.
+                    
+                    return "".join(response_parts)
+
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                socket.timeout,
+                json.JSONDecodeError,
+            ) as exc:
+                last = exc
                 if progress is not None:
-                    if thinking_buffer:
-                        progress("[thinking] " + "".join(thinking_buffer))
-                    if response_buffer:
-                        progress("[response] " + "".join(response_buffer))
-                
-                return "".join(response_parts)
+                    progress(
+                        f"      Ollama attempt failed after "
+                        f"{time.monotonic() - started:.2f}s: {exc}"
+                    )
+                if attempt < self.retries:
+                    time.sleep(0.5 * (attempt + 1))
 
-        except (
-            urllib.error.URLError,
-            TimeoutError,
-            socket.timeout,
-            json.JSONDecodeError,
-        ) as exc:
-            last = exc
-            if progress is not None:
-                progress(
-                    f"      Ollama attempt failed after "
-                    f"{time.monotonic() - started:.2f}s: {exc}"
-                )
-            if attempt < self.retries:
-                time.sleep(0.5 * (attempt + 1))
-
-    raise RuntimeError(f"ollama gave up after {self.retries + 1} attempt(s): {last}")
+        raise RuntimeError(f"ollama gave up after {self.retries + 1} attempt(s): {last}")
 
 
 def text_paths(folder: Path) -> list[Path]:
