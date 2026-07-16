@@ -424,6 +424,7 @@ def main() -> None:
     parser.add_argument("--num-predict", type=int, default=25000, help="Ollama num_predict option; keep small because only three short lines are needed.")
     parser.add_argument("--temperature", type=float, default=0.5, help="Ollama temperature option for move generation.")
     parser.add_argument("--revise-between", action="store_true", help="After each game, ask Ollama to rewrite context-dir/strategy.txt.")
+    parser.add_argument("--think", type=bool, default=True, help="Enable thinking for LLM prompts")
     parser.add_argument("--stream", type=bool, default=False, help="More verbose printed outputs for debugging purposes.")
     parser.add_argument(
         "--check-ollama",
