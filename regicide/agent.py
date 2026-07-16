@@ -369,22 +369,22 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
                 "error": last_error,
                 "phase_after": game.render(),
             }) + "\n")
-    if illegal >= args.max_illegal and game.phase not in {Phase.WON, Phase.LOST}:
-        game.phase = Phase.LOST
-        game.message = f"Stopped after {illegal} illegal move(s)."
-    progress(f"[game {game_no}] Finished with phase={game.phase.value}, score={score(game, illegal)}, illegal moves={illegal}")
-    result = {
-        "game": game_no,
-        "seed": seed,
-        "seed_mode": args.seed_mode,
-        "phase": game.phase.value,
-        "score": score(game, illegal),
-        "illegal_moves": illegal,
-        "log": str(log_path),
-        "output_dir": str(args.run_dir),
-    }
-    for key,val in result.items(): print(f"{key}: {val}")
-    log.write(json.dumps(result) + "\n")
+        if illegal >= args.max_illegal and game.phase not in {Phase.WON, Phase.LOST}:
+            game.phase = Phase.LOST
+            game.message = f"Stopped after {illegal} illegal move(s)."
+        progress(f"[game {game_no}] Finished with phase={game.phase.value}, score={score(game, illegal)}, illegal moves={illegal}")
+        result = {
+            "game": game_no,
+            "seed": seed,
+            "seed_mode": args.seed_mode,
+            "phase": game.phase.value,
+            "score": score(game, illegal),
+            "illegal_moves": illegal,
+            "log": str(log_path),
+            "output_dir": str(args.run_dir),
+        }
+        for key,val in result.items(): print(f"{key}: {val}")
+        log.write(json.dumps(result) + "\n")
     return result
 
 
