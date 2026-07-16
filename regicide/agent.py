@@ -166,7 +166,7 @@ class Ollama:
                             response_buffer.append(text)
                     
                         now = time.monotonic()
-                        if progress is not None and now - last_flush > 0.25:
+                        if progress is not None and now - last_flush > 5.0:
                     
                             if thinking_buffer:
                                 progress("[thinking] " + "".join(thinking_buffer))
