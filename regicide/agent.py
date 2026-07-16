@@ -126,10 +126,10 @@ class Ollama:
                     progress(
                         f"      Ollama attempt {attempt + 1}/{self.retries + 1} "
                         f"(timeout={self.timeout:g}s, num_predict={self.num_predict}, "
-                        f"stream={stream})"
+                        f"stream={self.stream})"
                     )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                    if not stream:
+                    if not self.stream:
                         data = json.loads(resp.read().decode())
                         result = data.get("response", "")
     
