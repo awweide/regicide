@@ -143,16 +143,13 @@ class Ollama:
                     # Streaming mode
                     response_parts = []
                     thinking_parts = []
-                    
                     response_buffer = []
                     thinking_buffer = []
-                    
                     last_flush = time.monotonic()
                     
                     for raw in resp:
                         if not raw:
                             continue
-                    
                         chunk = json.loads(raw.decode())
                     
                         thinking = chunk.get("thinking")
@@ -338,23 +335,22 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
     with log_path.open("w") as log:
         turn = 0
         while game.phase not in {Phase.WON, Phase.LOST} and illegal < args.max_illegal:
-            progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Phase={game.phase.value}; illegal moves={illegal}/{args.max_illegal}")
+            print(game.render())
             context = (args.run_dir / f"{game_no-1:03d}_strategy.txt").read_text(errors="replace")
             before = game.render()
             memory_before = memory
             comment = ""
             response = ""
             try:
-                #progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
+                progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
                 response = prompt_ollama(ollama, move_prompt(game, context, memory, illegal, last_error), progress=progress)
                 slots, comment, memory = parse_agent_response(response)
-                #progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Model selected slot(s): {slots}")
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
                 else:
                     game.discard_slots(slots)
                 last_error = ""
-                #progress(f"[game {game_no} turn {turn + 1} enemy_pile {len(game.enemy_pile)}] Move applied; new phase={game.phase.value}")
+                print(response)
             except Exception as exc:  # keep games moving; illegal engine moves and ollama failures both count
                 slots = []
                 illegal += 1
