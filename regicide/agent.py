@@ -431,7 +431,7 @@ def main() -> None:
         help="Only test Ollama server communication, printing each progress step, then exit.",
     )
     args = parser.parse_args()
-    ollama = Ollama(args.model, args.ollama_url, args.timeout, args.retries, args.num_predict, args.temperature, args.stream)
+    ollama = Ollama(args.model, args.ollama_url, args.timeout, args.retries, args.num_predict, args.temperature, args.think, args.stream)
     if args.check_ollama:
         print(json.dumps(ollama.check_connection(), indent=2))
         return
