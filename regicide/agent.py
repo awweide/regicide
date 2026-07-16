@@ -43,8 +43,8 @@ def parse_agent_response(response: str) -> tuple[list[int], str, str]:
             sections[current].append(line)
 
     move_text = "\n".join(part for part in sections["move"] if part).strip()
-    comment = limit_words("\n".join(part for part in sections["comment"] if part))
-    memory = limit_words("\n".join(part for part in sections["memory"] if part))
+    comment = limit_words("\n".join(part for part in sections["comment"] if part), max_words = 1000)
+    memory = limit_words("\n".join(part for part in sections["memory"] if part), max_words = 10000)
     return parse_slots(move_text), comment, memory
 
 
@@ -255,28 +255,29 @@ def score(game: Game, illegal_moves: int) -> int:
 
 
 def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
-    return f"""You are playing solo Regicide. Reply only in this exact three-line format:
+    return f"""You are an LLM agent playing solo Regicide, playing out each play and discard phase as separate prompts. Reply only in this exact three-line format:
 1: <hand slot numbers>
-2: <optional brief comment, up to 200 words, explaining the choice in the game log>
-3: <short-term memory, up to 200 words, carried over to the next turn of the game>
+2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
+3: <optional short-term memory, up to 10000 words, repeated back to the agent in next phase prompt>
 
 For example, this is a good attempt at a valid response:
 1: 1 7
 2: Play spades against undamaged enemy to maximize value
 3: Nothing important to remember
-The following are also correctly formatted:
-1: 5 (single card)
-1: (no card: allowed only with empty hand)
+This is a correctly formatted single card play or single card discard:
+1: 5
+This is a correctly formatted 0-card play (allowed only with an empty hand) or 0-card discard:
+1: 
 
 This is the current game state:
 {game.render()}
 
-Short-term memory from previous turn:
+Short-term memory:
 {memory or '(none)'}
 
-Use the rules and strategies to determine valid and good plays.
-The comment is logged for later strategy revision but is not shown to future move prompts.
-The memory is passed to your next move prompt in this same game; use it for facts like known top draw-pile cards or remaining enemies.
+Use the rules and strategies to determine valid and good plays. Note that the game progresses predictably through play and discard phases, allowing planning ahead for future turns. New information is only gained when cards are revealed from the Enemy pile or Draw pile, and even then only if they are not already known.
+The comment is logged for later strategy revision but is not shown to future move prompts. The comment should help explain the agent's decision, ideally connecting it with the contents of strategy.txt
+The memory is repeated back to the agent in the next phase prompt: in light of your own thinking, consider what reminders, rules clarifications and similar advice would be useful to carry forward. In particular, clear up misunderstandings that wasted a lot of the thinking budget. Use it also to retain information about the game state that becomes hidden, such as which cards of which suit are left in the enemy pile and known cards on top of the draw pile.
 
 Rules for the game and self-discovered advice for how to play:
 {context}
@@ -287,21 +288,18 @@ Last move error feedback (use this to fix your next response): {last_error or 'n
 Repeating the key task:
 Reply only in this exact three-line format:
 1: <hand slot numbers>
-2: <optional brief comment, up to 200 words, explaining the choice in the game log>
-3: <short-term memory, up to 200 words, carried over to the next turn of the game>
+2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
+3: <short-term memory, up to 10000 words, carried over to the next turn of the game>
 
-This is the current game state:
+Repeating the current game state:
 {game.render()}
-
-Short-term memory from previous turn:
-{memory or '(none)'}
 """
 
 
 def revise_prompt(context: str, result: dict) -> str:
     return f"""Revise strategy.txt based on how the previous game played out. Return only the complete new contents of strategy.txt.
-Make sure to retain the useful parts of the old strategy.txt. Focus on improving expected score, by avoiding illegal moves and progressing by defeating more enemies.
-Try to understand why the game was won or lost and identify moves which were weak and how the mistakes could have been avoided.  
+Make sure to retain the useful parts of the old strategy.txt. Focus on avoiding illegal moves and progressing further by defeating more enemies. It is possible, albeit difficult, to defeat all 12 enemies in a single game.
+Try to understand why the game was won or lost and identify moves which were weak and how the mistakes could have been avoided.
 Every game is played with the same seed, such that enemies and draws will be ordered the same in each game. Take advantage of this to memorize "random" draws across games and to figure out which moves work and don't work by trial and error.
 
 Current text files:
@@ -365,7 +363,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
             turn += 1
             log.write(json.dumps({
                 "turn": turn,
-                "phase_before": before,
+                "game_state_before": before,
                 "response": response,
                 "slots": slots,
                 "comment": comment,
@@ -389,7 +387,8 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
         "log": str(log_path),
         "output_dir": str(args.run_dir),
     }
-    print(json.dumps(result))
+    for key,val in result: print(f"{key}: {value}")
+    log.write(json.dumps(result) + "\n")
     return result
 
 
