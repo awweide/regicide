@@ -81,8 +81,7 @@ class PlayedSet:
     damage: int
 
     def __str__(self) -> str:
-        return "(" + " + ".join(str(card) for card in self.cards) + ")"
-
+        return "(" + " ".join(str(card) for card in self.cards) + ")"
 
 @dataclass
 class Game:
@@ -96,6 +95,7 @@ class Game:
     attack_reduction: int = 0
     phase: Phase = Phase.PLAY
     message: str = ""
+    turn: int = 1
 
     @classmethod
     def new(cls, seed: int | None = None) -> "Game":
@@ -148,6 +148,7 @@ class Game:
                 self.discard_pile.append(card)
                 self.hand[index] = None
         self.phase = Phase.PLAY
+        self.turn += 1
         self.message = f"Discarded {len(cards)} card(s)."
 
     @property
@@ -201,6 +202,7 @@ class Game:
             self.phase = Phase.WON
             self.message = "All enemies defeated. You win!"
         else:
+            self.turn += 1
             self.phase = Phase.PLAY
             self.message = f"Defeated {defeated}."
 
@@ -276,28 +278,48 @@ class Game:
             raise ValueError("Cannot choose the same slot more than once.")
         return indexes
 
-    def _render_hand_rows(self) -> list[str]:
-        card_cells = [str(card) if card is not None else "--" for card in self.hand]
-        widths = [max(len(str(slot)), len(card)) for slot, card in enumerate(card_cells, start=1)]
-        slot_row = "   ".join(f"{slot:>{width}}" for slot, width in zip(range(1, len(self.hand) + 1), widths))
-        card_row = "   ".join(f"{card:>{width}}" for card, width in zip(card_cells, widths))
-        return [slot_row, card_row]
+    def _render_hand_rows(self) -> str:
+        entries = [
+            f"{slot}: {card}"
+            for slot, card in enumerate(self.hand, start=1)
+            if card is not None
+        ]
+        return " ".join(entries)
 
     def render(self) -> str:
-        enemy = str(self.active_enemy) if self.active_enemy else "--"
-        in_play = ", ".join(str(played) for played in self.in_play) or "--"
+        if self.active_enemy is None:
+            enemy = "--"
+            health = "0/0"
+            damage = "0/0"
+        else:
+            enemy = str(self.active_enemy)
+            health = (
+                f"{self.active_enemy_health - self.enemy_damage}/"
+                f"{self.active_enemy_health}"
+            )
+            damage = (
+                f"{self.incoming_attack}/"
+                f"{ENEMY_ATTACK[self.active_enemy.rank]}"
+            )
+    
+        in_play = " ".join(str(played) for played in self.in_play) or "--"
+    
+        hand_count = sum(card is not None for card in self.hand)
+    
         lines = [
-            f"Draw pile ({len(self.draw_pile)})",
-            f"Discard pile ({len(self.discard_pile)})",
-            f"Enemy pile ({len(self.enemy_pile)})",
-            f"Active enemy: {enemy}",
-            f"Enemy current/base health: {self.active_enemy_health - self.enemy_damage}/{self.active_enemy_health} ",
-            f"Enemy attack after/before reduction: {self.incoming_attack}/{ENEMY_ATTACK[self.active_enemy.rank]}",
-            f"In play: {in_play}",
-            "Hand:",
-            *self._render_hand_rows(),
-            f"Phase: {self.phase.value}",
+            f"Turn / Phase: {self.turn} / {self.phase.value}",
+            f"Enemy: {enemy}, Health current/max: {health}, Damage current/max: {damage}",
+            f"Cards in play: {in_play}",
+            (
+                f"Enemy pile ({len(self.enemy_pile)}), "
+                f"Draw pile ({len(self.draw_pile)}), "
+                f"Discard pile ({len(self.discard_pile)})"
+            ),
+            f"Hand cards current/max: {hand_count}/{HAND_SIZE_SOLO}",
+            f"Hand slots: {self._render_hand_rows()}",
         ]
+    
         if self.message:
             lines.append(f"Message: {self.message}")
-        return "\n".join(lines)
+    
+        return "\n".join(lines) + "\n"
