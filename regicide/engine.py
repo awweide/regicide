@@ -124,6 +124,7 @@ class Game:
             self.hand[index] = None
         defeated_enemy = self._apply_play(play)
         self._compact_hand()
+        if self._check_empty_hand_loss("No cards remain in hand. You cannot continue the battle."): return
         if not defeated_enemy and self.phase == Phase.PLAY and self.active_enemy is not None:
             if self.incoming_attack == 0:
                 self.phase = Phase.PLAY
@@ -147,6 +148,8 @@ class Game:
             if card is not None:
                 self.discard_pile.append(card)
                 self.hand[index] = None
+        if self._check_empty_hand_loss("No cards remain after absorbing the enemy attack."):
+            return
         self.phase = Phase.PLAY
         self.turn += 1
         self.message = f"Discarded {len(cards)} card(s)."
@@ -207,9 +210,6 @@ class Game:
             self.message = f"Defeated {defeated}."
 
     def _validate_play(self, cards: list[Card]) -> None:
-        if not cards and not all(c is None for c in self.hand):
-            raise ValueError("Cannot play no cards unless hand is empty.")
-        
         num_cards = len([card for card in cards])
         num_non_aces = len([card for card in cards if card.rank != Rank.ACE])
         num_aces = len([card for card in cards if card.rank == Rank.ACE])
@@ -229,6 +229,19 @@ class Game:
         if num_non_aces >= 2 and num_ranks >= 2:
             raise ValueError("Cannot play non-ace cards of different ranks: combos only allowed with same-rank cards with total value of at most 10.")
 
+    def _check_empty_hand_loss(self, reason: str) -> bool:
+        """Return True if the game ended."""
+        if self.active_enemy is None:
+            # Game already won.
+            return False
+    
+        if any(card is not None for card in self.hand):
+            return False
+    
+        self.phase = Phase.LOST
+        self.message = reason
+        return True
+    
     def _heal(self, amount: int) -> None:
         random.shuffle(self.discard_pile)
         healed = self.discard_pile[:amount]
