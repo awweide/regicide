@@ -253,7 +253,7 @@ def score(game: Game, illegal_moves: int) -> int:
 
 def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
     return f"""You are an LLM agent playing solo Regicide, playing out each play and discard phase as separate prompts. Reply only in this exact three-line format:
-1: <hand slot numbers>
+1: <space seperated hand slot indices>
 2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
 3: <optional short-term memory, up to 10000 words, repeated back to the agent in next phase prompt>
 
@@ -263,7 +263,7 @@ For example, this is a good attempt at a valid response:
 3: Nothing important to remember
 This is a correctly formatted single card play or single card discard:
 1: 5
-This is a correctly formatted 0-card play (allowed only with an empty hand) or 0-card discard:
+This is a correctly formatted 0-card discard. 0-card play is not allowed.
 1: 
 
 This is the current game state:
@@ -284,7 +284,7 @@ Last move error feedback (use this to fix your next response): {last_error or 'n
 
 Repeating the key task:
 Reply only in this exact three-line format:
-1: <hand slot numbers>
+1: <space seperated hand slot indices>
 2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
 3: <short-term memory, up to 10000 words, carried over to the next turn of the game>
 
