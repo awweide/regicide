@@ -217,7 +217,7 @@ class Game:
         num_ranks = len({card.rank for card in cards})
 
         if num_cards == 0:
-            raise ValueEror("Cannot play 0 cards; passing the turn is not allowed in solo play.")
+            raise ValueError("Cannot play 0 cards; passing the turn is not allowed in solo play.")
         if num_cards == 1:
             return
         if num_non_aces >= 2 and num_aces >= 1:
