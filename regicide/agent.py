@@ -280,7 +280,7 @@ Rules for the game (these are authorative):
 {get_text(run_dir, "rules.txt")}
 
 Strategic advice for how to play (these are based on previous experiences of the LLM agent):
-{get_text(run_dir, f"{game_no-1:03d}_strategy.txt"}
+{get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
 
 Summaries of previous games (these are written by the LLM agent):
 {get_text_all_previous(run_dir, "summary.txt", game_no)}
