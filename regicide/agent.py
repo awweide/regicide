@@ -204,18 +204,19 @@ class Ollama:
 
         raise RuntimeError(f"ollama gave up after {self.retries + 1} attempt(s): {last}")
 
+def get_text(directory: Path, filename: str) -> str:
+    return (directory / filename).read_text(encoding="utf-8", errors="replace")
 
-def text_paths(folder: Path) -> list[Path]:
-    folder.mkdir(parents=True, exist_ok=True)
-    return sorted(folder.glob("*.txt"))
-
-
-def read_texts(folder: Path) -> str:
+def get_text_all_previous(directory: Path, tail_filename: str, game_no: int) -> str:
     parts = []
-    for path in text_paths(folder):
-        parts.append(f"--- {path.name} ---\n{path.read_text(errors='replace')}")
-    return "\n\n".join(parts) or "(no local context files yet)"
 
+    for i in range(game_no):
+        filename = f"{i:03d}_{tail_filename}"
+        parts.append(
+            f"Summary game {i + 1}:\n"
+            f"{get_text(directory, filename).strip()}"
+        )
+    return "\n\n".join(parts)
 
 def create_run_dir(log_root: Path) -> Path:
     log_root.mkdir(parents=True, exist_ok=True)
@@ -225,7 +226,6 @@ def create_run_dir(log_root: Path) -> Path:
             d.mkdir()
             return d
     raise RuntimeError("No free run directory.")
-
 
 def prompt_ollama(ollama, prompt: str, progress=print) -> str:
     """Call an Ollama-like object, passing progress when its prompt method supports it."""
@@ -251,8 +251,8 @@ def score(game: Game, illegal_moves: int) -> int:
     return 10000 * enemies_defeated + 100 * hand_value + len(game.draw_pile) - 1000 * illegal_moves
 
 
-def move_prompt(game: Game, context: str, memory: str, illegal_moves: int, last_error: str = "") -> str:
-    return f"""You are an LLM agent playing solo Regicide, playing out each play and discard phase as separate prompts. Reply only in this exact three-line format:
+def move_prompt(game: Game, game_no: int, memory: str, illegal_moves: int, last_error: str = "", run_dir: Path) -> str:
+    return f"""You are an LLM agent playing solo Regicide. The play and discard phases of each turn are processed as separate prompts. Reply only in this exact three-line format:
 1: <space seperated hand slot indices>
 2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
 3: <optional short-term memory, up to 10000 words, repeated back to the agent in next phase prompt>
@@ -269,15 +269,21 @@ This is a correctly formatted 0-card discard. 0-card play is not allowed.
 This is the current game state:
 {game.render()}
 
-Short-term memory:
+Short-term memory from previous turn performed by the same agent:
 {memory or '(none)'}
 
 Use the rules and strategies to determine valid and good plays. Note that the game progresses predictably through play and discard phases, allowing planning ahead for future turns. New information is only gained when cards are revealed from the Enemy pile or Draw pile, and even then only if they are not already known.
 The comment is logged for later strategy revision but is not shown to future move prompts. The comment should help explain the agent's decision, ideally connecting it with the contents of strategy.txt
 The memory is repeated back to the agent in the next phase prompt: in light of your own thinking, consider what reminders, rules clarifications and similar advice would be useful to carry forward. In particular, clear up misunderstandings that wasted a lot of the thinking budget. Use it also to retain information about the game state that becomes hidden, such as which cards of which suit are left in the enemy pile and known cards on top of the draw pile.
 
-Rules for the game and self-discovered advice for how to play:
-{context}
+Rules for the game (these are authorative):
+{get_text(run_dir, "rules.txt")}
+
+Strategic advice for how to play (these are based on previous experiences of the LLM agent):
+{get_text(run_dir, f"{game_no-1:03d}_strategy.txt"}
+
+Summaries of previous games (these are written by the LLM agent):
+{get_text_all_previous(run_dir, "summary.txt", game_no)}
 
 Illegal moves so far: {illegal_moves}
 Last move error feedback (use this to fix your next response): {last_error or 'none'}
@@ -293,17 +299,45 @@ Repeating the current game state:
 """
 
 
-def revise_prompt(context: str, result: dict) -> str:
-    return f"""Revise strategy.txt based on how the previous game played out. Return only the complete new contents of strategy.txt.
-Make sure to retain the useful parts of the old strategy.txt. Focus on avoiding illegal moves and progressing further by defeating more enemies. It is possible, albeit difficult, to defeat all 12 enemies in a single game.
-Try to understand why the game was won or lost and identify moves which were weak and how the mistakes could have been avoided.
-Every game is played with the same seed, such that enemies and draws will be ordered the same in each game. Take advantage of this to memorize "random" draws across games and to figure out which moves work and don't work by trial and error.
+def revise_prompt(game_no: int, run_dir: Path) -> str:
+    return f"""You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
+You are provided with the previous version of this document. Revise it and return only the complete, new version of the document.
+Make sure to retain the useful parts of the old document, while trying to improve it.
+The main success criteria when playing is to avoid illegal moves and defeat more enemies before losing. While it is difficult, it is possible to defeat all 12 enemies in a single game with strong play.
+Note that every game is played with the same seed. This means that the starting hand, the Draw pile and the Enemy pile always start out in the same state, including the order of the cards. Try to take advantage of this to improve play from game to game.
 
-Current text files:
-{context}
+Log file from previous game:
+{get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
 
-Last game result JSON:
-{json.dumps(result, indent=2)}
+Summaries of previous games (these are written by the LLM agent):
+{get_text_all_previous(run_dir, "summary.txt", game_no)}
+
+Previous version of strategy document:
+{get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
+
+Repeating the key task:
+You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
+You are provided with the previous version of this document. Revise it and return only the complete, new version of the document.
+Make sure to retain the useful parts of the old document, while trying to improve it.
+"""
+
+def summarize_prompt(game_no: int, run_dir: Path) -> str:
+    return f"""You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead summarizing the game you just played.
+The main success criteria when playing is to avoid illegal moves and defeat more enemies before losing. While it is difficult, it is possible to defeat all 12 enemies in a single game with strong play.
+Note that every game is played with the same seed. This means that the starting hand, the Draw pile and the Enemy pile always start out in the same state, including the order of the cards. Try to take advantage of this to improve play from game to game.
+Write a concise summary of what happened during the game, on a turn-by-turn basis if useful. Avoiding duplicating information and bloating the summary. Write your analysis of which moves were good or bad and why. Try to determine how the game ended and why. Reflect on whether the game was played according to the advice in the stategy document and whether the advice was useful.
+
+Log file from previous game:
+{get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
+
+Summaries of previous games (these are written by the LLM agent):
+{get_text_all_previous(run_dir, "summary.txt", game_no)}
+
+Previous version of strategy document:
+{get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
+
+Repeating the key task:
+You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead summarizing the game you just played.
 """
 
 
@@ -335,15 +369,14 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
     with log_path.open("w") as log:
         turn = 0
         while game.phase not in {Phase.WON, Phase.LOST} and illegal < args.max_illegal:
-            print(game.render())
-            context = (args.run_dir / f"{game_no-1:03d}_strategy.txt").read_text(errors="replace")
             before = game.render()
             memory_before = memory
+            print(before)
             comment = ""
             response = ""
             try:
                 progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-                response = prompt_ollama(ollama, move_prompt(game, context, memory, illegal, last_error), progress=progress)
+                response = prompt_ollama(ollama, move_prompt(game, game_no, memory, illegal, last_error, args.run_dir), progress=progress)
                 slots, comment, memory = parse_agent_response(response)
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
@@ -364,7 +397,6 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
                 "slots": slots,
                 "comment": comment,
                 "memory_before": memory_before,
-                "memory_after": memory,
                 "illegal_moves": illegal,
                 "error": last_error,
                 "phase_after": game.render(),
@@ -378,6 +410,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
             "seed": seed,
             "seed_mode": args.seed_mode,
             "phase": game.phase.value,
+            "memory": memory,
             "score": score(game, illegal),
             "illegal_moves": illegal,
             "log": str(log_path),
@@ -418,7 +451,6 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=0, help="Retries after transport, timeout, or JSON errors. Illegal moves are not retried.")
     parser.add_argument("--num-predict", type=int, default=25000, help="Ollama num_predict option; keep small because only three short lines are needed.")
     parser.add_argument("--temperature", type=float, default=0.5, help="Ollama temperature option for move generation.")
-    parser.add_argument("--revise-between", action="store_true", help="After each game, ask Ollama to rewrite context-dir/strategy.txt.")
     parser.add_argument("--think", type=bool, default=True, help="Enable thinking for LLM prompts")
     parser.add_argument("--stream", type=bool, default=False, help="More verbose printed outputs for debugging purposes.")
     parser.add_argument(
@@ -433,17 +465,21 @@ def main() -> None:
         return
     args.run_dir = create_run_dir(args.log_dir)
     shutil.copy2(args.context_dir / "strategy.txt", args.run_dir / "000_strategy.txt")
+    shutil.copy2(args.context_dir / "rules.txt", args.run_dir / "rules.txt")
 
     for game_no in range(1, args.games + 1):
         result = run_one(args, ollama, game_no)
-        if args.revise_between:
-            print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-            ollama.num_predict *= 10; ollama.timeout *= 10
-            current=(args.run_dir / f"{game_no-1:03d}_strategy.txt").read_text(errors="replace")
-            text = prompt_ollama(ollama, revise_prompt(current, result), progress=print)
-            (args.run_dir / f"{game_no:03d}_strategy.txt").write_text(text)
-            print(f"[game {game_no}] Wrote revised strategy notes")
-            ollama.num_predict /= 10; ollama.timeout /= 10
+        
+        ollama.num_predict *= 10; ollama.timeout *= 10
+        print(f"[game {game_no}] Requesting game summary from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
+        text = prompt_ollama(ollama, summarize_prompt(game_no, args.run_dir), progress=print)        
+        (args.run_dir / f"{game_no:03d}_summary.txt").write_text(text)
+        
+        print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
+        text = prompt_ollama(ollama, revise_prompt(current, result), progress=print)
+        (args.run_dir / f"{game_no:03d}_strategy.txt").write_text(text)
+        
+        ollama.num_predict /= 10; ollama.timeout /= 10
 
 
 if __name__ == "__main__":
