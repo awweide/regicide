@@ -207,10 +207,10 @@ class Ollama:
 def get_text(directory: Path, filename: str) -> str:
     return (directory / filename).read_text(encoding="utf-8", errors="replace")
 
-def get_text_all_previous(directory: Path, tail_filename: str, game_no: int) -> str:
+def get_text_all_previous(directory: Path, tail_filename: str, game_no: int, first_game_no: int = 1) -> str:
     parts = []
 
-    for i in range(game_no):
+    for i in range(first_game_no, game_no):
         filename = f"{i:03d}_{tail_filename}"
         parts.append(
             f"Summary game {i + 1}:\n"
@@ -312,8 +312,8 @@ Log file from previous game:
 Summaries of previous games (these are written by the LLM agent):
 {get_text_all_previous(run_dir, "summary.txt", game_no)}
 
-Previous version of strategy document:
-{get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
+Previous versiosn of strategy document:
+{get_text_all_previous(run_dir, "strategy.txt", game_no, 0)}
 
 Repeating the key task:
 You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
