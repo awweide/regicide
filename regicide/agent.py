@@ -213,7 +213,7 @@ def get_text_all_previous(directory: Path, tail_filename: str, game_no: int, fir
     for i in range(first_game_no, game_no):
         filename = f"{i:03d}_{tail_filename}"
         parts.append(
-            f"Summary game {i + 1}:\n"
+            f"Game {i + 1}:\n"
             f"{get_text(directory, filename).strip()}"
         )
     return "\n\n".join(parts)
@@ -476,7 +476,7 @@ def main() -> None:
         (args.run_dir / f"{game_no:03d}_summary.txt").write_text(text)
         
         print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-        text = prompt_ollama(ollama, revise_prompt(current, result), progress=print)
+        text = prompt_ollama(ollama, revise_prompt(game_no, args.run_dir), progress=print)
         (args.run_dir / f"{game_no:03d}_strategy.txt").write_text(text)
         
         ollama.num_predict /= 10; ollama.timeout /= 10
