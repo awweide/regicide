@@ -252,7 +252,7 @@ def score(game: Game, illegal_moves: int) -> int:
 
 
 def move_prompt(game: Game, game_no: int, memory: str, illegal_moves: int, last_error: str, run_dir: Path) -> str:
-    return f"""You are an LLM agent playing solo Regicide. The play and discard phases of each turn are processed as separate prompts. Reply only in this exact three-line format:
+    return f"""You are an LLM agent playing solo Regicide. This is a turn-based single-player game using a standard deck of cards. The play and discard phases of each turn are processed as separate prompts. Reply only in this exact three-line format:
 1: <space seperated hand slot indices>
 2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
 3: <optional short-term memory, up to 10000 words, repeated back to the agent in next phase prompt>
@@ -300,9 +300,10 @@ Repeating the current game state:
 
 
 def revise_prompt(game_no: int, run_dir: Path) -> str:
-    return f"""You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
+    return f"""You are an LLM agent playing solo Regicide. This is a turn-based single-player game using a standard deck of cards. You are not playing the actual game at the moment, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
 You are provided with the previous version of this document. Revise it and return only the complete, new version of the document.
 Make sure to retain the useful parts of the old document, while trying to improve it.
+Actively make sure you understand the rules for playing and discard, including what are legal plays, and how the different suits and values work.
 The main success criteria when playing is to avoid illegal moves and defeat more enemies before losing. While it is difficult, it is possible to defeat all 12 enemies in a single game with strong play.
 Note that every game is played with the same seed. This means that the starting hand, the Draw pile and the Enemy pile always start out in the same state, including the order of the cards. Try to take advantage of this to improve play from game to game.
 
@@ -322,7 +323,7 @@ Make sure to retain the useful parts of the old document, while trying to improv
 """
 
 def summarize_prompt(game_no: int, run_dir: Path) -> str:
-    return f"""You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead summarizing the game you just played.
+    return f"""You are an LLM agent playing solo Regicide. This is a turn-based single-player game using a standard deck of cards.. You are not playing the actual game at the moment, but instead summarizing the game you just played.
 The main success criteria when playing is to avoid illegal moves and defeat more enemies before losing. While it is difficult, it is possible to defeat all 12 enemies in a single game with strong play.
 Note that every game is played with the same seed. This means that the starting hand, the Draw pile and the Enemy pile always start out in the same state, including the order of the cards. Try to take advantage of this to improve play from game to game.
 Write a concise summary of what happened during the game, on a turn-by-turn basis if useful. Avoiding duplicating information and bloating the summary. Write your analysis of which moves were good or bad and why. Try to determine how the game ended and why. Reflect on whether the game was played according to the advice in the stategy document and whether the advice was useful.
