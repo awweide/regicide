@@ -251,7 +251,7 @@ def score(game: Game, illegal_moves: int) -> int:
     return 10000 * enemies_defeated + 100 * hand_value + len(game.draw_pile) - 1000 * illegal_moves
 
 
-def move_prompt(game: Game, game_no: int, memory: str, illegal_moves: int, last_error: str = "", run_dir: Path) -> str:
+def move_prompt(game: Game, game_no: int, memory: str, illegal_moves: int, last_error: str, run_dir: Path) -> str:
     return f"""You are an LLM agent playing solo Regicide. The play and discard phases of each turn are processed as separate prompts. Reply only in this exact three-line format:
 1: <space seperated hand slot indices>
 2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
