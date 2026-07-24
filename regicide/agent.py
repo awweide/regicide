@@ -186,11 +186,15 @@ class Ollama:
                             progress("[response] " + "".join(response_buffer))
                     
                     return "".join(response_parts)
-
             except (
                 urllib.error.URLError,
                 TimeoutError,
                 socket.timeout,
+                ConnectionResetError,
+                ConnectionAbortedError,
+                ConnectionRefusedError,
+                BrokenPipeError,
+                OSError,
                 json.JSONDecodeError,
             ) as exc:
                 last = exc
@@ -200,7 +204,7 @@ class Ollama:
                         f"{time.monotonic() - started:.2f}s: {exc}"
                     )
                 if attempt < self.retries:
-                    time.sleep(0.5 * (attempt + 1))
+                    time.sleep(60 * (attempt + 1)**5)
 
         raise RuntimeError(f"ollama gave up after {self.retries + 1} attempt(s): {last}")
 
@@ -466,7 +470,7 @@ def main() -> None:
     parser.add_argument("--games", type=int, default=1)
     parser.add_argument("--max-illegal", type=int, default=10)
     parser.add_argument("--timeout", type=float, default=300, help="Seconds to wait for one Ollama /api/generate response.")
-    parser.add_argument("--retries", type=int, default=0, help="Retries after transport, timeout, or JSON errors. Illegal moves are not retried.")
+    parser.add_argument("--retries", type=int, default=5, help="Retries after transport, timeout, or JSON errors. Illegal moves are not retried.")
     parser.add_argument("--num-predict", type=int, default=25000, help="Ollama num_predict option; keep small because only three short lines are needed.")
     parser.add_argument("--temperature", type=float, default=0.5, help="Ollama temperature option for move generation.")
     parser.add_argument("--think", type=bool, default=True, help="Enable thinking for LLM prompts")
