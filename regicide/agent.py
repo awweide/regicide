@@ -251,7 +251,7 @@ def score(game: Game, illegal_moves: int) -> int:
     return 10000 * enemies_defeated + 100 * hand_value + len(game.draw_pile) - 1000 * illegal_moves
 
 
-def move_prompt(game: Game, game_no: int, memory: str, illegal_moves: int, last_error: str, run_dir: Path) -> str:
+def move_prompt(game: Game, game_no: int, game_no_best_score: int, memory: str, illegal_moves: int, last_error: str, run_dir: Path) -> str:
     return f"""You are an LLM agent playing solo Regicide. This is a turn-based single-player game using a standard deck of cards. The play and discard phases of each turn are processed as separate prompts. Reply only in this exact three-line format:
 1: <space seperated hand slot indices>
 2: <optional brief comment, up to 1000 words, explaining the choice in the game log>
@@ -282,8 +282,8 @@ Rules for the game (these are authorative):
 Strategic advice for how to play (these are based on previous experiences of the LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
 
-Summaries of previous games (these are written by the LLM agent):
-{get_text_all_previous(run_dir, "summary.txt", game_no)}
+Summary from best scoring game:
+{get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")}
 
 Illegal moves so far: {illegal_moves}
 Last move error feedback (use this to fix your next response): {last_error or 'none'}
@@ -297,9 +297,11 @@ Reply only in this exact three-line format:
 Repeating the current game state:
 {game.render()}
 """
+#Summaries of previous games (these are written by the LLM agent):
+#{get_text_all_previous(run_dir, "summary.txt", game_no)}
 
 
-def revise_prompt(game_no: int, run_dir: Path) -> str:
+def revise_prompt(game_no: int, game_no_best_score: int, run_dir: Path) -> str:
     return f"""You are an LLM agent playing solo Regicide. This is a turn-based single-player game using a standard deck of cards. You are not playing the actual game at the moment, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
 You are provided with the previous version of this document. Revise it and return only the complete, new version of the document.
 Make sure to retain the useful parts of the old document, while trying to improve it.
@@ -307,14 +309,23 @@ Actively make sure you understand the rules for playing and discard, including w
 The main success criteria when playing is to avoid illegal moves and defeat more enemies before losing. While it is difficult, it is possible to defeat all 12 enemies in a single game with strong play.
 Note that every game is played with the same seed. This means that the starting hand, the Draw pile and the Enemy pile always start out in the same state, including the order of the cards. Try to take advantage of this to improve play from game to game.
 
-Log file from previous game:
+Log file from previous game (from game engine with comments from LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
 
-Summaries of previous games (these are written by the LLM agent):
-{get_text_all_previous(run_dir, "summary.txt", game_no)}
+Summary of previous game (this is written by the LLM agent).
+{get_text(run_dir, f"{game_no-1:03d}_summary.txt")}
 
-Previous versiosn of strategy document:
-{get_text_all_previous(run_dir, "strategy.txt", game_no, 0)}
+Previous version of strategy document (this is written by the LLM agent):
+{get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
+
+Log from best scoring game (from game engine with comments from LLM agent):
+{get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")}
+Summary from best scoring game (this is written by the LLM agent):
+{get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")}
+Strategy document from best scoring game (this is written by the LLM agent):
+{get_text(run_dir, f"{game_no_best_score-1:03d}_strategy.txt")}
+
+game_no_best_score: int, 
 
 Repeating the key task:
 You are an LLM agent playing solo Regicide. You are not playing the actual game, currently, but instead revising a document explaining how to play the game well, aimed at helping an LLM agent make good decisions during a game.
@@ -322,19 +333,25 @@ You are provided with the previous version of this document. Revise it and retur
 Make sure to retain the useful parts of the old document, while trying to improve it.
 """
 
-def summarize_prompt(game_no: int, run_dir: Path) -> str:
+def summarize_prompt(game_no: int, game_no_best_score: int, run_dir: Path) -> str:
     return f"""You are an LLM agent playing solo Regicide. This is a turn-based single-player game using a standard deck of cards.. You are not playing the actual game at the moment, but instead summarizing the game you just played.
 The main success criteria when playing is to avoid illegal moves and defeat more enemies before losing. While it is difficult, it is possible to defeat all 12 enemies in a single game with strong play.
 Note that every game is played with the same seed. This means that the starting hand, the Draw pile and the Enemy pile always start out in the same state, including the order of the cards. Try to take advantage of this to improve play from game to game.
 Write a concise summary of what happened during the game, on a turn-by-turn basis if useful. Avoiding duplicating information and bloating the summary. Write your analysis of which moves were good or bad and why. Try to determine how the game ended and why. Reflect on whether the game was played according to the advice in the stategy document and whether the advice was useful.
 
-Log file from previous game:
-{get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
+Log from best scoring game (from game engine with comments from LLM agent):
+{get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")}
+Summary from best scoring game (this is written by the LLM agent):
+{get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")}
+Strategy document from best scoring game (this is written by the LLM agent):
+{get_text(run_dir, f"{game_no_best_score-1:03d}_strategy.txt")}
 
-Summaries of previous games (these are written by the LLM agent):
+Log file from previous game (from game engine with comments from LLM agent):
+{get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
+Summary of previous game (this is written by the LLM agent):
 {get_text_all_previous(run_dir, "summary.txt", game_no)}
 
-Previous version of strategy document:
+Previous version of strategy document (this is written by the LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
 
 Repeating the key task:
@@ -357,7 +374,7 @@ def move_error_feedback(exc: Exception, response: str | None) -> str:
     )
 
 
-def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=print) -> dict:
+def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, game_no_best_score: int, progress=print) -> dict:
     seed = game_seed(args, game_no)
     game = Game.new(seed=seed)
     illegal = 0
@@ -377,7 +394,7 @@ def run_one(args: argparse.Namespace, ollama: Ollama, game_no: int, progress=pri
             response = ""
             try:
                 progress(f"[game {game_no} turn {turn + 1}] Requesting move from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-                response = prompt_ollama(ollama, move_prompt(game, game_no, memory, illegal, last_error, args.run_dir), progress=progress)
+                response = prompt_ollama(ollama, move_prompt(game, game_no, game_no_best_score, memory, illegal, last_error, args.run_dir), progress=progress)
                 slots, comment, memory = parse_agent_response(response)
                 if game.phase == Phase.PLAY:
                     game.play_slots(slots)
@@ -468,16 +485,22 @@ def main() -> None:
     shutil.copy2(args.context_dir / "strategy.txt", args.run_dir / "000_strategy.txt")
     shutil.copy2(args.context_dir / "rules.txt", args.run_dir / "rules.txt")
 
+    best_score = float("-inf")
+    game_no_best_score = None
+    
     for game_no in range(1, args.games + 1):
-        result = run_one(args, ollama, game_no)
+        result = run_one(args, ollama, game_no, game_no_best_score)
+        if result["score"] > best_score:
+            best_score = result["score"]
+            game_no_best_score = game_no
         
         ollama.num_predict *= 10; ollama.timeout *= 10
         print(f"[game {game_no}] Requesting game summary from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-        text = prompt_ollama(ollama, summarize_prompt(game_no, args.run_dir), progress=print)        
+        text = prompt_ollama(ollama, summarize_prompt(game_no, game_no_best_score, args.run_dir), progress=print)        
         (args.run_dir / f"{game_no:03d}_summary.txt").write_text(text)
         
         print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
-        text = prompt_ollama(ollama, revise_prompt(game_no, args.run_dir), progress=print)
+        text = prompt_ollama(ollama, revise_prompt(game_no, game_no_best_score, args.run_dir), progress=print)
         (args.run_dir / f"{game_no:03d}_strategy.txt").write_text(text)
         
         ollama.num_predict /= 10; ollama.timeout /= 10
