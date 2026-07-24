@@ -287,7 +287,11 @@ Strategic advice for how to play (these are based on previous experiences of the
 {get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
 
 Summary from best scoring game:
-{get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")}
+{
+    get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
 
 Illegal moves so far: {illegal_moves}
 Last move error feedback (use this to fix your next response): {last_error or 'none'}
@@ -323,11 +327,24 @@ Previous version of strategy document (this is written by the LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
 
 Log from best scoring game (from game engine with comments from LLM agent):
-{get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")}
+{
+    get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
 Summary from best scoring game (this is written by the LLM agent):
-{get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")}
+{
+    get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
+
 Strategy document from best scoring game (this is written by the LLM agent):
-{get_text(run_dir, f"{game_no_best_score-1:03d}_strategy.txt")}
+{
+    get_text(run_dir, f"{game_no_best_score-1:03d}_strategy.txt")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
 
 game_no_best_score: int, 
 
@@ -344,11 +361,24 @@ Note that every game is played with the same seed. This means that the starting 
 Write a concise summary of what happened during the game, on a turn-by-turn basis if useful. Avoiding duplicating information and bloating the summary. Write your analysis of which moves were good or bad and why. Try to determine how the game ended and why. Reflect on whether the game was played according to the advice in the stategy document and whether the advice was useful.
 
 Log from best scoring game (from game engine with comments from LLM agent):
-{get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")}
+{
+    get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
 Summary from best scoring game (this is written by the LLM agent):
-{get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")}
+{
+    get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
+
 Strategy document from best scoring game (this is written by the LLM agent):
-{get_text(run_dir, f"{game_no_best_score-1:03d}_strategy.txt")}
+{
+    get_text(run_dir, f"{game_no_best_score-1:03d}_strategy.txt")
+    if game_no_best_score is not None
+    else "(No game finished yet)"
+}
 
 Log file from previous game (from game engine with comments from LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
