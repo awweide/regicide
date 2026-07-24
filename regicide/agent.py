@@ -288,7 +288,7 @@ Strategic advice for how to play (these are based on previous experiences of the
 
 Summary from best scoring game:
 {
-    get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")
+    get_text(run_dir, f"{game_no_best_score-1:03d}_summary.txt")
     if game_no_best_score is not None
     else "(No game finished yet)"
 }
@@ -306,7 +306,7 @@ Repeating the current game state:
 {game.render()}
 """
 #Summaries of previous games (these are written by the LLM agent):
-#{get_text_all_previous(run_dir, "summary.txt", game_no)}
+#{get_text_all_previous(run_dir, "summary.txt", game_no-1)}
 
 
 def revise_prompt(game_no: int, game_no_best_score: int, run_dir: Path) -> str:
@@ -328,13 +328,13 @@ Previous version of strategy document (this is written by the LLM agent):
 
 Log from best scoring game (from game engine with comments from LLM agent):
 {
-    get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")
+    get_text(run_dir, f"{game_no_best_score-1:03d}_log.jsonl")
     if game_no_best_score is not None
     else "(No game finished yet)"
 }
 Summary from best scoring game (this is written by the LLM agent):
 {
-    get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")
+    get_text(run_dir, f"{game_no_best_score-1:03d}_summary.txt")
     if game_no_best_score is not None
     else "(No game finished yet)"
 }
@@ -362,13 +362,13 @@ Write a concise summary of what happened during the game, on a turn-by-turn basi
 
 Log from best scoring game (from game engine with comments from LLM agent):
 {
-    get_text(run_dir, f"{game_no_best_score:03d}_log.jsonl")
+    get_text(run_dir, f"{game_no_best_score-1:03d}_log.jsonl")
     if game_no_best_score is not None
     else "(No game finished yet)"
 }
 Summary from best scoring game (this is written by the LLM agent):
 {
-    get_text(run_dir, f"{game_no_best_score:03d}_summary.txt")
+    get_text(run_dir, f"{game_no_best_score-1:03d}_summary.txt")
     if game_no_best_score is not None
     else "(No game finished yet)"
 }
@@ -383,7 +383,7 @@ Strategy document from best scoring game (this is written by the LLM agent):
 Log file from previous game (from game engine with comments from LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_log.jsonl")}
 Summary of previous game (this is written by the LLM agent):
-{get_text_all_previous(run_dir, "summary.txt", game_no)}
+{get_text_all_previous(run_dir, "summary.txt", game_no-1)}
 
 Previous version of strategy document (this is written by the LLM agent):
 {get_text(run_dir, f"{game_no-1:03d}_strategy.txt")}
@@ -524,20 +524,21 @@ def main() -> None:
     
     for game_no in range(1, args.games + 1):
         result = run_one(args, ollama, game_no, game_no_best_score)
-        if result["score"] > best_score:
-            best_score = result["score"]
-            game_no_best_score = game_no
-        
+                
         ollama.num_predict *= 10; ollama.timeout *= 10
         print(f"[game {game_no}] Requesting game summary from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
         text = prompt_ollama(ollama, summarize_prompt(game_no, game_no_best_score, args.run_dir), progress=print)        
-        (args.run_dir / f"{game_no:03d}_summary.txt").write_text(text)
+        (args.run_dir / f"{game_no-1:03d}_summary.txt").write_text(text)
         
         print(f"[game {game_no}] Requesting revised strategy notes from Ollama model {getattr(ollama, 'model', 'unknown')!r}")
         text = prompt_ollama(ollama, revise_prompt(game_no, game_no_best_score, args.run_dir), progress=print)
         (args.run_dir / f"{game_no:03d}_strategy.txt").write_text(text)
         
         ollama.num_predict /= 10; ollama.timeout /= 10
+
+        if result["score"] > best_score:
+            best_score = result["score"]
+            game_no_best_score = game_no
 
 
 if __name__ == "__main__":
